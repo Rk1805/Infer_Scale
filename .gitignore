@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.venv/
+/build/
+/dist/
+/*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+/*.local
+frontend/dist/
+frontend/.vite/
+
+# Docker
+.dockerinit
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data and models (large files)
+data/*.csv
+data/*.json
+data/*.parquet
+models/*.zip
+models/*.pt
+models/*.onnx
+experiments/*.db
+experiments/*.json
+reports/*.md
+reports/*.html
+reports/*.pdf
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# TypeScript
+*.tsbuildinfo

@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: inferscale-api
+    ports:
+      - "8000:8000"
+    environment:
+      - INFERSCALE_DB_URL=sqlite:///./experiments.db
+      - INFERSCALE_DATA_DIR=/app/data
+      - INFERSCALE_MODELS_DIR=/app/models
+      - INFERSCALE_EXPERIMENTS_DIR=/app/experiments
+      - INFERSCALE_REPORTS_DIR=/app/reports
+      - INFERSCALE_API_HOST=0.0.0.0
+      - INFERSCALE_API_PORT=8000
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./experiments:/app/experiments
+      - ./reports:/app/reports
+      - ./experiments.db:/app/experiments.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: inferscale-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Optional: Background worker for long-running jobs
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: inferscale-worker
+    command: python -m inferscale.worker.main
+    environment:
+      - INFERSCALE_DB_URL=sqlite:///./experiments.db
+      - INFERSCALE_DATA_DIR=/app/data
+      - INFERSCALE_MODELS_DIR=/app/models
+      - INFERSCALE_EXPERIMENTS_DIR=/app/experiments
+      - INFERSCALE_REPORTS_DIR=/app/reports
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./experiments:/app/experiments
+      - ./reports:/app/reports
+      - ./experiments.db:/app/experiments.db
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  data:
+  models:
+  experiments:
+  reports:
