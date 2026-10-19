@@ -43,8 +43,8 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["backend*", "frontend*"]
+where = ["backend"]
+include = ["inferscale*"]
 
 [tool.black]
 line-length = 100

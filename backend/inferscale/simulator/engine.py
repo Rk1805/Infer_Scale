@@ -347,6 +347,10 @@ class SimulatorEngine:
     def _handle_decision_point(self) -> Dict:
         """Handle a decision point - returns observation for policy."""
         self.decision_points.append(self.current_time)
+        # Direct policy evaluation needs a decision throughout the episode, not only at t=0.
+        next_time = self.current_time + self.decision_interval
+        if self.decision_interval > 0 and next_time < self.episode_duration:
+            self._schedule_event(next_time, EventType.DECISION_POINT)
         obs = self.get_observation()
         return {
             "time": self.current_time,
