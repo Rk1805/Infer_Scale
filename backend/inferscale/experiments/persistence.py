@@ -75,6 +75,18 @@ class ExperimentDB:
                     created_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );
 
+                CREATE TABLE IF NOT EXISTS benchmarks (
+                    id TEXT PRIMARY KEY,
+                    config TEXT NOT NULL,
+                    state TEXT NOT NULL DEFAULT 'queued',
+                    progress REAL NOT NULL DEFAULT 0,
+                    results TEXT,
+                    error TEXT,
+                    started_at TEXT,
+                    completed_at TEXT,
+                    created_at TEXT NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_experiments_state ON experiments(state);
                 CREATE INDEX IF NOT EXISTS idx_experiments_created ON experiments(created_at);
                 CREATE INDEX IF NOT EXISTS idx_models_created ON models(created_at);
@@ -94,6 +106,55 @@ class ExperimentDB:
             raise
         finally:
             conn.close()
+
+    # Benchmark records are additive; legacy experiment/model data is untouched.
+    def create_benchmark(self, benchmark_id: str, config: Dict) -> None:
+        with self._lock, self._get_conn() as conn:
+            conn.execute(
+                "INSERT INTO benchmarks (id, config, created_at) VALUES (?, ?, ?)",
+                (benchmark_id, json.dumps(config), datetime.now().isoformat()),
+            )
+
+    def update_benchmark(self, benchmark_id: str, **values) -> None:
+        allowed = {"state", "progress", "results", "error", "started_at", "completed_at"}
+        if not values or not set(values) <= allowed:
+            raise ValueError("Invalid benchmark update")
+        fields = list(values)
+        params = [json.dumps(values[key], allow_nan=False) if key == "results" else values[key]
+                  for key in fields]
+        with self._lock, self._get_conn() as conn:
+            conn.execute(
+                "UPDATE benchmarks SET " + ", ".join(f"{key} = ?" for key in fields) + " WHERE id = ?",
+                [*params, benchmark_id],
+            )
+
+    def get_benchmark(self, benchmark_id: str) -> Optional[Dict]:
+        with self._get_conn() as conn:
+            row = conn.execute("SELECT * FROM benchmarks WHERE id = ?", (benchmark_id,)).fetchone()
+            return self._deserialize_benchmark(row) if row else None
+
+    def list_benchmarks(self, limit: int = 100) -> List[Dict]:
+        with self._get_conn() as conn:
+            rows = conn.execute("SELECT * FROM benchmarks ORDER BY created_at DESC LIMIT ?",
+                                (limit,)).fetchall()
+            return [self._deserialize_benchmark(row) for row in rows]
+
+    def interrupt_benchmarks(self) -> None:
+        """A process restart cannot resume an in-memory simulation safely."""
+        with self._lock, self._get_conn() as conn:
+            conn.execute(
+                "UPDATE benchmarks SET state='failed', error=?, completed_at=? "
+                "WHERE state IN ('queued', 'running')",
+                ("Server stopped before benchmark completion; submit a new benchmark to retry",
+                 datetime.now().isoformat()),
+            )
+
+    @staticmethod
+    def _deserialize_benchmark(row) -> Dict:
+        data = dict(row)
+        data["config"] = json.loads(data["config"])
+        data["results"] = json.loads(data["results"]) if data["results"] else None
+        return data
 
     # Experiment methods
     def create_experiment(self, exp_id: str, config: Dict, state: str = "queued") -> None:
