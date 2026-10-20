@@ -325,84 +325,34 @@ def evaluate_model(args):
 
 
 def benchmark(args):
-    """Run benchmark comparing all policies."""
-    print("Running benchmark across all policies...")
-    
-    # Generate test workloads
-    workloads = {
-        "steady": SYNTHETIC_WORKLOADS["steady"](num_requests=2000),
-        "periodic": SYNTHETIC_WORKLOADS["periodic"](num_requests=2000),
-        "flash_crowd": SYNTHETIC_WORKLOADS["flash_crowd"](num_requests=2000),
-    }
-    
-    policies = ["fixed", "threshold", "queue"]
-    if args.include_ppo and args.ppo_model:
+    """Run a reproducible policy matrix and export run-level research artifacts."""
+    import uuid
+    from inferscale.experiments.benchmark import run_benchmark
+    from inferscale.experiments.reporting import write_reports
+    from inferscale.schemas.benchmark import BenchmarkConfig
+    from inferscale.schemas.experiment import ExperimentConfig
+
+    policies = args.policies or ["fixed", "threshold", "queue"]
+    if args.include_ppo and "ppo" not in policies:
         policies.append("ppo")
-    
-    results = {}
-    
-    for wl_name, requests in workloads.items():
-        print(f"\n--- Workload: {wl_name} ({len(requests)} requests) ---")
-        results[wl_name] = {}
-        
-        for policy_name in policies:
-            print(f"  Running {policy_name}...", end=" ", flush=True)
-            
-            config = {
-                "initial_replicas": 2,
-                "min_replicas": 1,
-                "max_replicas": 8,
-                "startup_delay": 10.0,
-                "cooldown": 30.0,
-                "decision_interval": 5.0,
-                "episode_duration": 3600.0,
-                "sla_threshold": 30.0,
-                "replica_capacity": 10,
-                "random_seed": 42,
-                "fixed_capacity": 4,
-                "threshold_upper": 0.75,
-                "threshold_lower": 0.25,
-                "scaling_in_duration": 60,
-                "queue_based_target": 0.5,
-                "queue_scale_up": 1.0,
-                "queue_scale_down": 0.2,
-                "model_path": args.ppo_model,
-            }
-            
-            policy = get_policy(policy_name, config)
-            
-            engine = SimulatorEngine(
-                requests=requests,
-                initial_replicas=2,
-                min_replicas=1,
-                max_replicas=8,
-                startup_delay=10.0,
-                cooldown=30.0,
-                decision_interval=5.0,
-                episode_duration=3600.0,
-                sla_threshold=30.0,
-                replica_capacity=10,
-                seed=42,
-            )
-            
-            while engine.events and engine.current_time < 3600.0:
-                result = engine.step()
-                if result and result.get("decision_point"):
-                    obs = result["observation"]
-                    obs["time"] = engine.current_time
-                    action = policy.act(obs, engine)
-                    engine.take_action(action)
-            
-            metrics = engine.get_metrics()
-            results[wl_name][policy_name] = metrics
-            
-            print(f"Cost=${metrics['total_cost']:.2f}, p95={metrics['p95_latency_ms']:.1f}ms, SLA={metrics['sla_violation_rate']*100:.1f}%")
-    
-    # Save results
+    config = BenchmarkConfig(
+        experiment=ExperimentConfig(episode_duration=args.duration),
+        policies=policies, workloads=args.workloads, seeds=args.seeds,
+        num_requests=args.num_requests, checkpoint_path=args.ppo_model,
+        trace_path=args.trace, evaluation_split=args.evaluation_split,
+    )
+    result = run_benchmark(config)
+    identifier = str(uuid.uuid4())
+    directory = write_reports(result, args.reports_dir, identifier)
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-    with open(args.output, "w") as f:
-        json.dump(results, f, indent=2, default=str)
-    print(f"\nBenchmark results saved to {args.output}")
+    Path(args.output).write_text(result.model_dump_json(indent=2), encoding="utf-8")
+    successful = sum(run.status == "completed" for run in result.runs)
+    print(f"{successful}/{len(result.runs)} runs completed; reports: {directory}")
+    for run in result.runs:
+        if run.error:
+            print(f"FAILED {run.workload}/{run.seed}/{run.policy}: {run.error}")
+    if successful != len(result.runs):
+        raise SystemExit(1)
 
 
 def main():
@@ -456,6 +406,16 @@ def main():
     bench_parser.add_argument("--output", default="results/benchmark.json")
     bench_parser.add_argument("--include-ppo", action="store_true")
     bench_parser.add_argument("--ppo-model", help="Path to PPO model for benchmark")
+    bench_parser.add_argument("--policies", nargs="+", choices=["fixed", "threshold", "queue", "ppo"])
+    bench_parser.add_argument("--seeds", nargs="+", type=int, default=[11, 22, 33, 44, 55])
+    bench_parser.add_argument("--workloads", nargs="+", default=["steady", "periodic", "flash_crowd"],
+                              choices=["steady", "periodic", "flash_crowd", "mixed"])
+    bench_parser.add_argument("--duration", type=float, default=3600)
+    bench_parser.add_argument("--num-requests", type=int, default=5000)
+    bench_parser.add_argument("--trace", help="Trusted local canonical CSV/JSON trace")
+    bench_parser.add_argument("--evaluation-split", default="unverified")
+    bench_parser.add_argument("--reports-dir", default=str(Path(settings.reports_dir) / "benchmarks"))
+
     
     args = parser.parse_args()
     
