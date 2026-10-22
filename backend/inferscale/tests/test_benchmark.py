@@ -1,6 +1,9 @@
 """Fast CPU tests for controlled traces and policy execution; no PPO training."""
 
+import json
 import random
+import subprocess
+import sys
 
 import pytest
 
@@ -56,6 +59,21 @@ def test_configuration_and_repeated_decisions(monkeypatch):
     assert seen[0].startup_delay == 1 and seen[0].cooldown == 2
     assert seen[0].decision_points == list(range(0, 20, 2))
     assert seen[0].seed == 11
+
+
+def test_actual_simulator_inputs_are_identical_between_policies(monkeypatch):
+    traces = []
+    original = module.SimulatorEngine
+
+    def capture(**kwargs):
+        traces.append([r.model_dump() for r in kwargs["requests"]])
+        return original(**kwargs)
+
+    monkeypatch.setattr(module, "SimulatorEngine", capture)
+    module.run_benchmark(small_config(workloads=["flash_crowd"]))
+    assert traces[0] == traces[1] == traces[2]
+    assert traces[3] == traces[4] == traces[5]
+    assert traces[0] != traces[3]
 
 
 def test_missing_checkpoint_is_explicit_failure():
@@ -126,6 +144,57 @@ def test_imported_trace_is_normalized(tmp_path):
     assert result.runs[0].trace_hash == result.runs[1].trace_hash
 
 
+def test_real_checkpoint_inference_without_training(tmp_path):
+    """An untrained test fixture verifies actual save/load/predict compatibility only."""
+    from stable_baselines3 import PPO
+
+    from inferscale.rl.env import InferScaleEnv
+
+    checkpoint = tmp_path / "fixture.zip"
+    env = InferScaleEnv(config={"episode_duration": 10})
+    PPO("MlpPolicy", env, n_steps=8, batch_size=4, device="cpu", verbose=0).save(checkpoint)
+    result = module.run_benchmark(small_config(policies=["ppo"], checkpoint_path=str(checkpoint)))
+    assert all(run.status == "completed" for run in result.runs)
+    env.close()
+
+
+def test_cli_creates_actual_reports(tmp_path):
+    output = tmp_path / "result.json"
+    reports = tmp_path / "reports"
+    process = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "inferscale.cli",
+            "benchmark",
+            "--seeds",
+            "11",
+            "22",
+            "--policies",
+            "fixed",
+            "queue",
+            "--workloads",
+            "flash_crowd",
+            "--duration",
+            "10",
+            "--num-requests",
+            "12",
+            "--output",
+            str(output),
+            "--reports-dir",
+            str(reports),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert process.returncode == 0, process.stdout + process.stderr
+    data = json.loads(output.read_text())
+    assert len(data["runs"]) == 4
+    assert all(run["metrics"]["arrivals"] == 12 for run in data["runs"])
+    assert len(list(reports.glob("*/report.md"))) == 1
+
+
 @pytest.mark.parametrize(
     "values",
     [
@@ -134,6 +203,8 @@ def test_imported_trace_is_normalized(tmp_path):
         {"policies": ["unknown"]},
         {"experiment": {"decision_interval": 0}},
         {"experiment": {"initial_replicas": 10}},
+        {"experiment": {"decision_interval": float("inf")}},
+        {"experiment": {"dataset_id": "missing.csv"}},
     ],
 )
 def test_invalid_benchmark_configuration(values):

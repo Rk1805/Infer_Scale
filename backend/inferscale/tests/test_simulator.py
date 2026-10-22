@@ -10,6 +10,7 @@ from inferscale.simulator.engine import (
     ReplicaState,
     EventType,
     ServiceTimeModel,
+    run_simulation,
 )
 from inferscale.schemas.request import RequestSchema
 
@@ -254,7 +255,9 @@ class TestSimulatorEngine:
         
         assert engine.current_time >= 1.0
         # Unfinished requests should be tracked
-        assert metrics["unfinished_requests"] >= 0
+        metrics = engine.get_metrics()
+        assert not engine.events
+        assert len(engine.waiting_queue) == metrics["arrivals"] > 0
 
     def test_determinism(self, sample_requests):
         """Test that simulator is deterministic with same seed."""

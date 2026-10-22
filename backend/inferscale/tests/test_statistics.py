@@ -1,5 +1,6 @@
 """Numerical checks against known values, not copies of the implementation."""
 
+import numpy as np
 import pytest
 
 from inferscale.experiments.statistics import (
@@ -27,6 +28,7 @@ def test_empty_single_and_nonfinite():
     assert single["std"] is None and single["ci_low"] is None
     assert summarize_metric([3, 3, 3])["ci_low"] == 3
     assert summarize_metric([1, 2], independent=False)["ci_low"] is None
+    assert summarize_metric(np.array([1, 2, 3]))["mean"] == 2
 
 
 def result_fixture():

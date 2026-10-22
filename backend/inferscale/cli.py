@@ -327,6 +327,7 @@ def evaluate_model(args):
 def benchmark(args):
     """Run a reproducible policy matrix and export run-level research artifacts."""
     import uuid
+
     from inferscale.experiments.benchmark import run_benchmark
     from inferscale.experiments.reporting import write_reports
     from inferscale.schemas.benchmark import BenchmarkConfig
@@ -406,15 +407,18 @@ def main():
     bench_parser.add_argument("--output", default="results/benchmark.json")
     bench_parser.add_argument("--include-ppo", action="store_true")
     bench_parser.add_argument("--ppo-model", help="Path to PPO model for benchmark")
-    bench_parser.add_argument("--policies", nargs="+", choices=["fixed", "threshold", "queue", "ppo"])
+    bench_parser.add_argument(
+        "--policies", nargs="+", choices=["fixed", "threshold", "queue", "ppo"])
     bench_parser.add_argument("--seeds", nargs="+", type=int, default=[11, 22, 33, 44, 55])
-    bench_parser.add_argument("--workloads", nargs="+", default=["steady", "periodic", "flash_crowd"],
-                              choices=["steady", "periodic", "flash_crowd", "mixed"])
+    bench_parser.add_argument(
+        "--workloads", nargs="+", default=["steady", "periodic", "flash_crowd"],
+        choices=["steady", "periodic", "flash_crowd", "mixed"])
     bench_parser.add_argument("--duration", type=float, default=3600)
     bench_parser.add_argument("--num-requests", type=int, default=5000)
     bench_parser.add_argument("--trace", help="Trusted local canonical CSV/JSON trace")
     bench_parser.add_argument("--evaluation-split", default="unverified")
-    bench_parser.add_argument("--reports-dir", default=str(Path(settings.reports_dir) / "benchmarks"))
+    bench_parser.add_argument(
+        "--reports-dir", default=str(Path(settings.reports_dir) / "benchmarks"))
 
     
     args = parser.parse_args()

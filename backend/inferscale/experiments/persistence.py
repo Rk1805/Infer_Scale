@@ -124,7 +124,8 @@ class ExperimentDB:
                   for key in fields]
         with self._lock, self._get_conn() as conn:
             conn.execute(
-                "UPDATE benchmarks SET " + ", ".join(f"{key} = ?" for key in fields) + " WHERE id = ?",
+                "UPDATE benchmarks SET "
+                + ", ".join(f"{key} = ?" for key in fields) + " WHERE id = ?",
                 [*params, benchmark_id],
             )
 

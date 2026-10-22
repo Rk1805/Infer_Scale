@@ -2,10 +2,20 @@
 
 import pytest
 import sys
+import atexit
+import os
+import tempfile
 from pathlib import Path
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Package imports initialize a global database. Isolate it before test collection,
+# including the legacy API tests, so the contributor's database is never modified.
+_test_storage = tempfile.TemporaryDirectory(prefix="inferscale-tests-")
+atexit.register(_test_storage.cleanup)
+os.environ["INFERSCALE_DB_URL"] = "sqlite:///" + str(Path(_test_storage.name) / "experiments.db")
+os.environ["INFERSCALE_REPORTS_DIR"] = str(Path(_test_storage.name) / "reports")
 
 
 @pytest.fixture(scope="session")

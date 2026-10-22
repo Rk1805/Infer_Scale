@@ -4,6 +4,7 @@ import json
 import math
 from collections import defaultdict
 from itertools import combinations
+from numbers import Real
 from statistics import mean, stdev
 
 from scipy.stats import t
@@ -21,7 +22,7 @@ def summarize_metric(values, *, independent: bool = True) -> dict:
     clean = [
         float(v)
         for v in values
-        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+        if isinstance(v, Real) and not isinstance(v, bool) and math.isfinite(v)
     ]
     count = len(clean)
     result = dict(

@@ -78,6 +78,8 @@ class BenchmarkConfig(BaseModel):
         if len(self.policies) * len(self.workloads) * len(self.seeds) > 500:
             raise ValueError("A benchmark supports at most 500 runs")
         cfg = self.experiment
+        if cfg.dataset_id != "synthetic" and not self.trace_path:
+            raise ValueError("Use trace_path for a canonical imported dataset")
         if any(
             isinstance(value, float) and not math.isfinite(value)
             for value in cfg.model_dump().values()

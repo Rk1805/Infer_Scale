@@ -229,6 +229,8 @@ class SimulatorEngine:
     def step(self) -> Optional[Dict]:
         """Execute one simulation step."""
         if not self.events or self.current_time >= self.episode_duration:
+            # Callers may loop on the queue; discard events that cannot run after the horizon.
+            self.events.clear()
             return None
 
         event = heapq.heappop(self.events)

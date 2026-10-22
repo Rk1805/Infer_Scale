@@ -23,7 +23,6 @@ def generate_steady_workload(
     origin = start_time.timestamp() if start_time_seconds is None else start_time_seconds
     rng = rng or random
     for i in range(num_requests):
-        t = start_time + timedelta(seconds=i * arrival_rate)
         requests.append(RequestSchema(
             id=f"req_{i}",
             arrival_time_seconds=origin + i * arrival_rate,
@@ -49,9 +48,7 @@ def generate_periodic_workload(
     origin = start_time.timestamp() if start_time_seconds is None else start_time_seconds
     rng = rng or random
     for period in range(periods):
-        base_time = start_time + timedelta(seconds=period * period_seconds)
         for i in range(num_requests // periods):
-            t = base_time + timedelta(seconds=i * period_seconds)
             multiplier = 1.0 + peak_factor * (period % 3)  # 1x, 1.5x, 2x
             token_count = int(rng.randint(20, 200) * multiplier)
             requests.append(RequestSchema(

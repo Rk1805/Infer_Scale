@@ -1,5 +1,6 @@
 """HTTP lifecycle tests with real tiny simulations and isolated SQLite/report storage."""
 
+import threading
 import time
 from uuid import uuid4
 
@@ -132,3 +133,45 @@ def test_report_io_failure_has_terminal_status(client, monkeypatch):
     record = wait_for_completion(client, identifier)
     assert record["state"] == "failed" and "disk fixture failure" in record["error"]
     assert client.get(f"/api/benchmarks/{identifier}/export").status_code == 404
+
+
+def test_bounded_queue_returns_429(client):
+    benchmarks.service._active = 8
+    try:
+        assert client.post("/api/benchmarks", json=payload()).status_code == 429
+    finally:
+        benchmarks.service._active = 0
+
+
+def test_registered_model_outside_model_root_is_rejected(client, tmp_path):
+    checkpoint = tmp_path / "outside.zip"
+    checkpoint.write_bytes(b"fixture")
+    benchmarks.service.db.create_model("outside", "outside", str(checkpoint), {})
+    response = client.post(
+        "/api/benchmarks", json={**payload(), "policies": ["ppo"], "model_id": "outside"}
+    )
+    assert response.status_code == 422
+
+
+def test_server_remains_responsive_during_benchmark(client, monkeypatch):
+    from inferscale.services import benchmark as jobs
+
+    entered, release = threading.Event(), threading.Event()
+    original = jobs.run_benchmark
+
+    def paused(*args, **kwargs):
+        entered.set()
+        assert release.wait(5)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(jobs, "run_benchmark", paused)
+    try:
+        response = client.post("/api/benchmarks", json=payload())
+        assert response.status_code == 202
+        assert entered.wait(2)
+        assert client.get("/api/health").status_code == 200
+        identifier = response.json()["id"]
+        assert client.get(f"/api/benchmarks/{identifier}").json()["state"] == "running"
+    finally:
+        release.set()
+    assert wait_for_completion(client, identifier)["state"] == "completed"
