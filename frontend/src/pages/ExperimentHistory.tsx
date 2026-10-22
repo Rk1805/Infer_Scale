@@ -1,24 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useExperiments } from '../hooks/useData'
-import { api, ExperimentJob, ExperimentMetrics } from '../lib/api'
+import { api, ExperimentJob } from '../lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Select } from '../components/ui/select'
 import { Label } from '../components/ui/label'
+import { Progress } from '../components/ui/progress'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
-import { Separator } from '../components/ui/separator'
 import { useToast } from '../components/ui/toast'
 import {
-  Download,
-  FileText,
-  Search,
-  Filter,
-  RotateCcw,
-  Eye,
-  Trash2,
-  ClipboardList,
+Download,
+FileText,
+Search,RotateCcw,
+Eye,
+Trash2,
+ClipboardList
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 

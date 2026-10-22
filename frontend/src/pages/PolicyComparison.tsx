@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useExperiments, useDatasets } from '../hooks/useData'
 import { api, ExperimentConfig, ExperimentMetrics } from '../lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -8,29 +8,27 @@ import { Label } from '../components/ui/label'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
-import { Separator } from '../components/ui/separator'
 import { useToast } from '../components/ui/toast'
 import {
-  Download,
-  GitCompare,
-  Loader2,
-  Play,
-  BarChart3,
-  TrendingUp,
+Download,
+GitCompare,
+Loader2,
+Play
 } from 'lucide-react'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ScatterChart,
-  Scatter,
+BarChart,
+Bar,
+XAxis,
+YAxis,
+CartesianGrid,
+Tooltip,
+Legend,
+ResponsiveContainer,
+ScatterChart,
+Scatter,
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
+import { BenchmarkPanel } from '../components/BenchmarkPanel'
 
 const POLICIES = [
   { value: 'fixed', label: 'Fixed Capacity' },
@@ -40,7 +38,7 @@ const POLICIES = [
 ]
 
 export function PolicyComparison() {
-  const { experiments, loading: expLoading, refetch: refetchExp } = useExperiments()
+  const { experiments } = useExperiments()
   const { datasets } = useDatasets()
   const { toast } = useToast()
 
@@ -132,11 +130,6 @@ export function PolicyComparison() {
     URL.revokeObjectURL(url)
   }
 
-  const policiesWithResults = POLICIES.map((p) => ({
-    ...p,
-    metrics: comparisonResults[p.value],
-  }))
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -159,6 +152,8 @@ export function PolicyComparison() {
           </Button>
         </div>
       </div>
+
+      <BenchmarkPanel />
 
       {/* Configuration */}
       <Card>
@@ -335,7 +330,6 @@ export function PolicyComparison() {
                         }).filter(Boolean) as any[]}
                         fill="#3b82f6"
                         stroke="#3b82f6"
-                        size={8}
                       />
                     </ScatterChart>
                   </ResponsiveContainer>

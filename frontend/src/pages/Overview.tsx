@@ -7,25 +7,19 @@ import { Progress } from '../components/ui/progress'
 import { useToast } from '../components/ui/toast'
 import { api } from '../lib/api'
 import {
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Play,
-  Brain,
-  FlaskConical,
-  GitCompare,
-  Download,
-  TrendingUp,
-  Server,
-  Database,
+CheckCircle,
+AlertCircle,
+Loader2,Brain,
+FlaskConical,
+GitCompare,TrendingUp,Database
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 export function Overview() {
   const { health, loading: healthLoading } = useHealth()
-  const { experiments, loading: expLoading } = useExperiments()
-  const { models, loading: modelsLoading } = useModels()
-  const { datasets, loading: datasetsLoading } = useDatasets()
+  const { experiments } = useExperiments()
+  const { models } = useModels()
+  const { datasets } = useDatasets()
   const { toast } = useToast()
 
   const latestExperiment = experiments[0]
@@ -242,7 +236,7 @@ export function Overview() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Status</span>
-                  {getStatusBadge(latestModel.state)}
+                  <Badge variant="outline">Registered</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Timesteps</span>

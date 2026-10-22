@@ -1,5 +1,42 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, ExperimentJob, ExperimentMetrics, TimelineEvent, TrainingJob, ModelInfo, Dataset, DatasetStats } from './api'
+import { api, ExperimentJob, ExperimentMetrics, TimelineEvent, TrainingJob, ModelInfo, Dataset, DatasetStats, BenchmarkJob, BenchmarkResults } from '../lib/api'
+
+export function useBenchmark(id: string | null) {
+  const [job, setJob] = useState<BenchmarkJob | null>(null)
+  const [results, setResults] = useState<BenchmarkResults | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    setJob(null)
+    setResults(null)
+    setError(null)
+    if (!id) return
+    const poll = async () => {
+      try {
+        const current = await api.getBenchmark(id)
+        if (!active) return
+        setJob(current)
+        if (current.progress > 0 || current.state === 'completed' || current.state === 'failed') {
+          try {
+            const data = await api.getBenchmarkResults(id)
+            if (active) setResults(data)
+          } catch (err) {
+            if (current.progress > 0) throw err
+          }
+        }
+        if (active && (current.state === 'running' || current.state === 'queued')) {
+          timer = setTimeout(poll, 1000)
+        }
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : 'Could not load benchmark')
+      }
+    }
+    void poll()
+    return () => { active = false; if (timer) clearTimeout(timer) }
+  }, [id])
+  return { job, results, error }
+}
 
 export function useHealth() {
   const [health, setHealth] = useState<{ status: string; timestamp: string } | null>(null)

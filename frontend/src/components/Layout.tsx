@@ -1,8 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { cn } from '../lib/utils'
-import { LayoutDashboard, FlaskConical, Activity, GitCompare, Brain, Database, History, Settings } from 'lucide-react'
-import { Button } from './ui/button'
-import { Separator } from './ui/separator'
+import { LayoutDashboard, FlaskConical, Activity, GitCompare, Brain, Database, History } from 'lucide-react'
 import { ToastContainer } from './ui/toast'
 
 const navigation = [

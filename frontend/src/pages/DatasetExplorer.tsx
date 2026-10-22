@@ -7,31 +7,25 @@ import { Badge } from '../components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Separator } from '../components/ui/separator'
-import { Progress } from '../components/ui/progress'
 import { useToast } from '../components/ui/toast'
 import {
-  Database,
-  Download,
-  Upload,
-  Search,
-  Filter,
-  AlertTriangle,
-  CheckCircle,
+Database,
+Download,
+Upload,
+Search,
+Filter,
+AlertTriangle,
+CheckCircle,
 } from 'lucide-react'
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
+BarChart,
+Bar,
+LineChart,
+Line,
+XAxis,
+YAxis,
+CartesianGrid,
+Tooltip,ResponsiveContainer
 } from 'recharts'
 
 export function DatasetExplorer() {

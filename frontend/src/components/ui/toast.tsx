@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from '../lib/utils'
+import { cn } from '../../lib/utils'
 
 interface ToastProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'destructive' | 'success'
@@ -26,12 +26,9 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
 )
 Toast.displayName = 'Toast'
 
-interface ToastProviderProps {
-  children: React.ReactNode
-}
-
-const toasts: Array<{ id: string; message: React.ReactNode; variant: ToastProps['variant'] }> = []
-const listeners: Array<(toasts: typeof toasts) => void> = []
+type ToastEntry = { id: string; message: React.ReactNode; variant: ToastProps['variant'] }
+const toasts: ToastEntry[] = []
+const listeners: Array<(items: ToastEntry[]) => void> = []
 
 function notify() {
   listeners.forEach((listener) => listener([...toasts]))

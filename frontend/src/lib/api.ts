@@ -24,6 +24,28 @@ class ApiClient {
   }
 
   // Health
+  async createBenchmark(config: BenchmarkRequest): Promise<BenchmarkJob> {
+    return (await this.client.post('/benchmarks', config)).data
+  }
+
+  async listBenchmarks(): Promise<BenchmarkJob[]> {
+    return (await this.client.get('/benchmarks')).data
+  }
+
+  async getBenchmark(id: string): Promise<BenchmarkJob> {
+    return (await this.client.get(`/benchmarks/${id}`)).data
+  }
+
+  async getBenchmarkResults(id: string): Promise<BenchmarkResults> {
+    return (await this.client.get(`/benchmarks/${id}/results`)).data
+  }
+
+  async exportBenchmark(id: string, artifact: string): Promise<Blob> {
+    return (await this.client.get(`/benchmarks/${id}/export`, {
+      params: { artifact }, responseType: 'blob',
+    })).data
+  }
+
   async health(): Promise<{ status: string; timestamp: string }> {
     const res = await this.client.get('/health')
     return res.data
@@ -101,7 +123,11 @@ class ApiClient {
 
   async listModels(): Promise<ModelInfo[]> {
     const res = await this.client.get('/models')
-    return res.data
+    return res.data.map((model: ModelInfo & { config: TrainingConfig | string; metrics: TrainingMetrics | string | null }) => ({
+      ...model,
+      config: typeof model.config === 'string' ? JSON.parse(model.config) : model.config,
+      metrics: typeof model.metrics === 'string' ? JSON.parse(model.metrics) : model.metrics,
+    }))
   }
 
   // Evaluations
@@ -123,6 +149,50 @@ class ApiClient {
 }
 
 export const api = new ApiClient()
+
+export interface BenchmarkRequest {
+  experiment: Partial<ExperimentConfig>
+  policies: string[]
+  workloads: string[]
+  seeds: number[]
+  num_requests: number
+  model_id?: string
+}
+
+export interface BenchmarkJob {
+  id: string
+  config: BenchmarkRequest
+  state: 'queued' | 'running' | 'completed' | 'failed'
+  progress: number
+  error: string | null
+  created_at: string
+}
+
+export interface BenchmarkSummary {
+  workload: string
+  policy: string
+  metric: string
+  n: number
+  mean: number | null
+  std: number | null
+  ci_low: number | null
+  ci_high: number | null
+  failed: number
+  missing: number
+}
+
+export interface BenchmarkResults {
+  id: string
+  successful_runs: number
+  failed_runs: number
+  aggregates: BenchmarkSummary[]
+  result: {
+    warnings: string[]
+    runs: Array<{
+      policy: string; workload: string; seed: number; status: string; error: string | null
+    }>
+  }
+}
 
 // Types
 export interface Dataset {
@@ -218,6 +288,10 @@ export interface ExperimentJob {
 }
 
 export interface ExperimentMetrics {
+  avg_queueing_delay_ms: number
+  avg_service_time_ms: number
+  completions: number
+  arrivals: number
   experiment_id: string
   total_cost: number
   avg_active_replicas: number

@@ -1,41 +1,34 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useExperiment, useExperimentMetrics, useExperimentTimeline } from '../hooks/useData'
-import { api, ExperimentJob, TimelineEvent } from '../lib/api'
+import { api, TimelineEvent } from '../lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Progress } from '../components/ui/progress'
-import { Separator } from '../components/ui/separator'
 import { useToast } from '../components/ui/toast'
+import { Label } from '../components/ui/label'
+import { Select } from '../components/ui/select'
+import { Server } from 'lucide-react'
 import {
-  Play,
-  Pause,
-  RotateCcw,
-  Download,
-  FastForward,
-  SkipBack,
-  SkipForward,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
+Play,RotateCcw,
+Download,Loader2,
+CheckCircle,
+AlertCircle,
+XCircle
 } from 'lucide-react'
 import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ComposedChart,
+Line,
+AreaChart,
+Area,Bar,
+XAxis,
+YAxis,
+CartesianGrid,
+Tooltip,
+Legend,
+ResponsiveContainer,
+ComposedChart
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -43,8 +36,8 @@ export function Simulation() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { experiment, loading: expLoading, error: expError, refetch: refetchExp } = useExperiment(id || null)
-  const { metrics, loading: metricsLoading } = useExperimentMetrics(id || null)
-  const { timeline, loading: timelineLoading } = useExperimentTimeline(id || null)
+  const { metrics } = useExperimentMetrics(id || null)
+  const { timeline } = useExperimentTimeline(id || null)
   const { toast } = useToast()
 
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
@@ -390,6 +383,7 @@ export function Simulation() {
   )
 
   async function exportResults(format: 'json' | 'csv') {
+    if (!experiment) return
     try {
       const blob = await api.exportExperiment(experiment.id, format)
       const url = URL.createObjectURL(blob)
@@ -451,7 +445,7 @@ function generateTimeSeries(
   const throughputData = []
   
   let activeReplicas = 2
-  let startingReplicas = 0
+  const startingReplicas = 0
   
   for (let i = 0; i <= buckets; i++) {
     const t = i * interval
@@ -527,7 +521,6 @@ function percentile(arr: number[], p: number): number {
 function TimelineView({
   requests,
   actions,
-  selectedStep,
   onSelectStep,
   timeRange,
   onTimeRangeChange,

@@ -1,10 +1,12 @@
-import * as React from 'react'
-import { cn } from '../lib/utils'
+import * as React from 'react';
+import { cn } from '../../lib/utils';
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {}
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  onValueChange?: (value: string) => void
+}
 
 const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, children, ...props }, ref) => (
+  ({ className, children, onValueChange, onChange, ...props }, ref) => (
     <select
       ref={ref}
       className={cn(
@@ -12,6 +14,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         className
       )}
       {...props}
+      onChange={event => { onChange?.(event); onValueChange?.(event.target.value) }}
     >
       {children}
     </select>

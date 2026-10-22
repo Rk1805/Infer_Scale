@@ -1,0 +1,174 @@
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Bar, BarChart, CartesianGrid, ErrorBar, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { api, BenchmarkJob } from '../lib/api'
+import { useBenchmark, useModels } from '../hooks/useData'
+import { Button } from './ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Progress } from './ui/progress'
+import { Select } from './ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
+
+const policies = ['fixed', 'threshold', 'queue', 'ppo']
+const format = (value: number | null) => value === null ? 'N/A' : value.toLocaleString(undefined, { maximumSignificantDigits: 5 })
+
+export function BenchmarkPanel() {
+  const [params, setParams] = useSearchParams()
+  const id = params.get('benchmark')
+  const { job, results, error: fetchError } = useBenchmark(id)
+  const { models } = useModels()
+  const [history, setHistory] = useState<BenchmarkJob[]>([])
+  const [selected, setSelected] = useState(['fixed', 'threshold', 'queue'])
+  const [workload, setWorkload] = useState('flash_crowd')
+  const [seeds, setSeeds] = useState('11,22,33,44,55')
+  const [duration, setDuration] = useState(600)
+  const [model, setModel] = useState('')
+  const [metric, setMetric] = useState('p95_latency_ms')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const running = submitting || job?.state === 'queued' || job?.state === 'running'
+
+  useEffect(() => {
+    let active = true
+    api.listBenchmarks().then(data => { if (active) setHistory(data) })
+      .catch(() => { if (active) setError('Could not load benchmark history') })
+    return () => { active = false }
+  }, [job?.state])
+
+  const selectBenchmark = (value: string) => {
+    const next = new URLSearchParams(params)
+    if (value) next.set('benchmark', value)
+    else next.delete('benchmark')
+    setParams(next)
+  }
+
+  const start = async () => {
+    setError(null)
+    const parts = seeds.split(',').map(s => s.trim())
+    if (parts.some(s => !/^\d+$/.test(s)) || new Set(parts.map(Number)).size !== parts.length || !selected.length) {
+      setError('Select at least one policy and enter unique nonnegative integer seeds.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const created = await api.createBenchmark({
+        experiment: { episode_duration: duration }, policies: selected,
+        workloads: [workload], seeds: parts.map(Number), num_requests: 5000,
+        ...(selected.includes('ppo') ? { model_id: model } : {}),
+      })
+      selectBenchmark(created.id)
+    } catch (err) {
+      const message = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      setError(typeof message === 'string' ? message : 'Benchmark request failed. Check duration, seeds, and PPO checkpoint availability.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const download = async (artifact: string) => {
+    if (!id) return
+    try {
+      const blob = await api.exportBenchmark(id, artifact)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `benchmark-${id}-${artifact}.${artifact === 'report' ? 'md' : artifact === 'manifest' ? 'json' : 'csv'}`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('Report download failed.')
+    }
+  }
+
+  const rows = results?.aggregates.filter(row => row.metric === metric) ?? []
+  const chart = rows.filter(row => row.mean !== null).map(row => ({
+    policy: `${row.policy} (${row.workload})`, mean: row.mean,
+    interval: row.ci_low !== null && row.ci_high !== null && row.mean !== null
+      ? [row.mean - row.ci_low, row.ci_high - row.mean] : null,
+  }))
+  const terminal = job?.state === 'completed' || job?.state === 'failed'
+
+  return <Card>
+    <CardHeader>
+      <CardTitle>Advanced Benchmarking</CardTitle>
+      <p className="text-sm text-muted-foreground">Shared workload traces, independent seeds, and 95% confidence intervals. Simulation estimates; cost includes startup charges only.</p>
+    </CardHeader>
+    <CardContent className="space-y-5">
+      <div className="flex flex-wrap gap-4" role="group" aria-label="Benchmark policies">
+        {policies.map(policy => <Label key={policy} className="flex items-center gap-2">
+          <input type="checkbox" checked={selected.includes(policy)} disabled={running}
+            onChange={e => setSelected(e.target.checked ? [...selected, policy] : selected.filter(p => p !== policy))} />
+          {policy.toUpperCase()}
+        </Label>)}
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div><Label htmlFor="benchmark-workload">Workload</Label>
+          <Select id="benchmark-workload" value={workload} disabled={running} onChange={e => setWorkload(e.target.value)}>
+            {['steady', 'periodic', 'flash_crowd', 'mixed'].map(w => <option key={w}>{w}</option>)}
+          </Select></div>
+        <div><Label htmlFor="benchmark-seeds">Seeds (comma separated)</Label>
+          <Input id="benchmark-seeds" value={seeds} disabled={running} onChange={e => setSeeds(e.target.value)} /></div>
+        <div><Label htmlFor="benchmark-duration">Duration (simulation seconds)</Label>
+          <Input id="benchmark-duration" type="number" min={1} max={86400} value={duration} disabled={running}
+            onChange={e => setDuration(Number(e.target.value))} /></div>
+      </div>
+      {selected.includes('ppo') && <div>
+        <Label htmlFor="benchmark-model">Existing trained PPO checkpoint</Label>
+        <Select id="benchmark-model" value={model} onChange={e => setModel(e.target.value)} disabled={running}>
+          <option value="">Select a registered model</option>
+          {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </Select>
+        <p className="text-sm text-muted-foreground">The server verifies that the checkpoint file exists. Training is never started by a benchmark.</p>
+      </div>}
+      <Button onClick={start} disabled={running || (selected.includes('ppo') && !model)}>
+        {running ? 'Benchmark running…' : 'Run multi-seed benchmark'}
+      </Button>
+      {(error || fetchError) && <p role="alert" className="text-destructive">{error || fetchError}</p>}
+      <div><Label htmlFor="benchmark-history">Saved benchmarks</Label>
+        <Select id="benchmark-history" value={id || ''} onChange={e => selectBenchmark(e.target.value)}>
+          <option value="">Select a benchmark</option>
+          {history.map(item => <option key={item.id} value={item.id}>{item.id.slice(0, 8)} · {item.state}</option>)}
+        </Select></div>
+      {id && !job && !fetchError && <p role="status">Loading benchmark…</p>}
+      {job && <div aria-live="polite">
+        <p>{job.state} · {Math.round(job.progress * 100)}%{results && ` · ${results.successful_runs} successful / ${results.failed_runs} failed runs`}</p>
+        <Progress value={job.progress * 100} />
+        {job.error && <p role="alert" className="text-destructive">{job.error}</p>}
+      </div>}
+      {results && <>
+        <div><Label htmlFor="benchmark-metric">Comparison metric</Label>
+          <Select id="benchmark-metric" value={metric} onChange={e => setMetric(e.target.value)}>
+            {[...new Set(results.aggregates.map(row => row.metric))].map(m => <option key={m}>{m}</option>)}
+          </Select></div>
+        {chart.length > 0 && <div aria-label="Run means and 95 percent confidence intervals">
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={chart}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="policy" />
+              <YAxis domain={['auto', 'auto']} /><Tooltip />
+              <Bar dataKey="mean" fill="#3b82f6"><ErrorBar dataKey="interval" width={6} strokeWidth={2} /></Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>}
+        <Table><TableHeader><TableRow>
+          {['Policy', 'Workload', 'Valid n', 'Mean', 'Sample SD', '95% CI', 'Failed / missing'].map(h => <TableHead key={h}>{h}</TableHead>)}
+        </TableRow></TableHeader><TableBody>{rows.map(row => <TableRow key={`${row.policy}-${row.workload}`}>
+          <TableCell>{row.policy}</TableCell><TableCell>{row.workload}</TableCell><TableCell>{row.n}</TableCell>
+          <TableCell>{format(row.mean)}</TableCell><TableCell>{format(row.std)}</TableCell>
+          <TableCell>{row.ci_low === null ? 'N/A' : `[${format(row.ci_low)}, ${format(row.ci_high)}]`}</TableCell>
+          <TableCell>{row.failed} / {row.missing}</TableCell>
+        </TableRow>)}</TableBody></Table>
+        <p className="text-sm text-muted-foreground">Intervals describe uncertainty in the mean across runs. N/A means insufficient independent observations. Partial results may change while running.</p>
+        {results.failed_runs > 0 && <details><summary>Failed runs</summary><ul>
+          {results.result.runs.filter(r => r.status === 'failed').map(r => <li key={`${r.policy}-${r.workload}-${r.seed}`}>{r.policy}/{r.workload}/{r.seed}: {r.error}</li>)}
+        </ul></details>}
+        <details><summary>Methodology and limitations</summary><ul>
+          {results.result.warnings.map(w => <li key={w}>{w}</li>)}
+        </ul></details>
+        {terminal && <div className="flex flex-wrap gap-2">
+          {['runs', 'aggregates', 'report', 'manifest'].map(a => <Button variant="outline" key={a} onClick={() => download(a)}>Download {a}</Button>)}
+        </div>}
+      </>}
+    </CardContent>
+  </Card>
+}
