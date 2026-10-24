@@ -89,6 +89,23 @@ make evaluate
 make benchmark
 ```
 
+## Advanced Benchmarking Contribution
+
+The Policy Comparison page now includes **Advanced Benchmarking**: shared workload
+traces across policies, independent workload seeds, run-level statistical summaries,
+95% Student's t intervals, matched policy differences, and downloadable CSV/Markdown
+reports with reproducibility metadata. PPO evaluation requires an existing checkpoint
+and never falls back to another policy.
+
+```bash
+python -m inferscale.cli benchmark --policies fixed threshold queue --seeds 11 22 33 44 55 --workloads flash_crowd --duration 600
+```
+
+See [Advanced Benchmarking: methodology and assessment guide](docs/advanced_benchmarking.md)
+for architecture, API endpoints, tests, report exports, and interpretation. Results
+are analytical simulation estimates; the inherited cost metric accounts for startup
+charges only, not total GPU infrastructure running cost.
+
 ## Dashboard Pages
 
 | Page | Description |
