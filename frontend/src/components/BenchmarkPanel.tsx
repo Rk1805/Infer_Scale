@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Download, FlaskConical, Play, ShieldCheck } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, ErrorBar, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, BenchmarkJob } from '../lib/api'
 import { useBenchmark, useModels } from '../hooks/useData'
@@ -106,15 +107,18 @@ export function BenchmarkPanel() {
       name: `${row.policy} (${row.workload})` }))
   const evaluatedTarget = (job?.config.experiment.slo_target ?? 0.99) * 100
 
-  return <Card>
-    <CardHeader>
-      <CardTitle>Advanced Benchmarking</CardTitle>
-      <p className="text-sm text-muted-foreground">Compare simulated operating cost and response-time targets on shared workloads, with independent seeds and 95% confidence intervals.</p>
+  return <Card className="benchmark-panel">
+    <CardHeader className="benchmark-panel-heading">
+      <div className="benchmark-heading-icon"><FlaskConical size={21} strokeWidth={1.6} /></div>
+      <div><p className="eyebrow mb-1">Controlled evaluation</p><CardTitle>Advanced benchmarking</CardTitle>
+        <p className="mt-1.5 text-xs text-muted-foreground">Shared workloads. Independent seeds. A fairer comparison.</p></div>
+      <span className="benchmark-confidence-note"><ShieldCheck size={13} /> 95% confidence intervals</span>
     </CardHeader>
-    <CardContent className="space-y-5">
-      <h3 className="font-semibold">Configure a new benchmark</h3>
-      <div className="flex flex-wrap gap-4" role="group" aria-label="Benchmark policies">
-        {policies.map(policy => <Label key={policy} className="flex items-center gap-2">
+    <CardContent className="space-y-6">
+      <div className="benchmark-configuration space-y-5">
+      <h3 className="configuration-heading"><span>01</span> Configure a new benchmark</h3>
+      <div className="flex flex-wrap gap-2.5" role="group" aria-label="Benchmark policies">
+        {policies.map(policy => <Label key={policy} className="policy-option" data-selected={selected.includes(policy)}>
           <input type="checkbox" checked={selected.includes(policy)} disabled={running}
             onChange={e => setSelected(e.target.checked ? [...selected, policy] : selected.filter(p => p !== policy))} />
           {policy.toUpperCase()}
@@ -135,7 +139,7 @@ export function BenchmarkPanel() {
             {policies.map(policy => <option key={policy} value={policy}>{policy.toUpperCase()}</option>)}
           </Select></div>
       </div>
-      <p className="text-sm text-muted-foreground">Starting, active (including idle), and draining replicas are billed until stopped or the episode ends. Select the baseline policy above to calculate matched savings.</p>
+      <p className="text-[14px] leading-relaxed text-muted-foreground">Costs include startup, idle, active, and draining time. Select your baseline policy to calculate matched savings.</p>
       <div className="grid gap-4 md:grid-cols-3">
         <div><Label htmlFor="benchmark-workload">Workload</Label>
           <Select id="benchmark-workload" value={workload} disabled={running} onChange={e => setWorkload(e.target.value)}>
@@ -156,26 +160,28 @@ export function BenchmarkPanel() {
         <p className="text-sm text-muted-foreground">The server verifies that the checkpoint file exists. Training is never started by a benchmark.</p>
       </div>}
       <Button onClick={start} disabled={running || (selected.includes('ppo') && !model)}>
+        <Play size={13} />
         {running ? 'Benchmark running…' : 'Run multi-seed benchmark'}
       </Button>
+      </div>
       {(error || fetchError) && <p role="alert" className="text-destructive">{error || fetchError}</p>}
-      <div><Label htmlFor="benchmark-history">Saved benchmarks</Label>
+      <div className="benchmark-history"><div><h3 className="configuration-heading"><span>02</span> Explore your results</h3><p className="mt-1.5 text-[14px] text-muted-foreground">Pick up where you left off.</p></div><div className="min-w-0 flex-1 sm:max-w-sm"><Label htmlFor="benchmark-history" className="sr-only">Saved benchmarks</Label>
         <Select id="benchmark-history" value={id || ''} onChange={e => selectBenchmark(e.target.value)}>
           <option value="">Select a benchmark</option>
           {history.map(item => <option key={item.id} value={item.id}>{item.id.slice(0, 8)} · {item.state}</option>)}
-        </Select></div>
+        </Select></div></div>
       {id && !job && !fetchError && <p role="status">Loading benchmark…</p>}
-      {job && <div aria-live="polite">
-        <p>{job.state} · {Math.round(job.progress * 100)}%{results && ` · ${results.successful_runs} successful / ${results.failed_runs} failed runs`}</p>
-        <Progress value={job.progress * 100} />
+      {job && <div className="benchmark-progress" aria-live="polite">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><span className={`status-pill status-${job.state}`}>{job.state}</span><p className="text-xs text-muted-foreground">{Math.round(job.progress * 100)}%{results && ` · ${results.successful_runs} successful / ${results.failed_runs} failed runs`}</p></div>
+        <Progress value={job.progress * 100} aria-label="Benchmark completion" />
         {job.error && <p role="alert" className="text-destructive">{job.error}</p>}
       </div>}
       {results && <>
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold">Cost and SLO evaluation</h3>
-          {job && <p className="text-sm text-muted-foreground">Saved run settings: deadline {job.config.experiment.sla_threshold ?? 30}s · duration {job.config.experiment.episode_duration}s · USD {job.config.experiment.cost_per_replica_second ?? 0.01} per replica-second · seeds {job.config.seeds.join(', ')}.</p>}
-          <p className="text-sm text-muted-foreground">Target: {format(evaluatedTarget)}% of arrivals within the configured deadline. Met means every configured seed meets the target even if pending requests fail. Violated means at least one seed cannot reach it. Otherwise the result is inconclusive.</p>
-          {frontier.length > 0 && <div aria-label="Mean operating cost versus lower SLO attainment bound">
+        <div className="benchmark-results space-y-4">
+          <h3 className="section-heading">Cost and SLO evaluation</h3>
+          {job && <div className="run-settings-grid"><div><span>Response deadline</span><strong>{job.config.experiment.sla_threshold ?? 30}<small> sec</small></strong></div><div><span>SLO target</span><strong>{format(evaluatedTarget)}<small>%</small></strong></div><div><span>Episode duration</span><strong>{job.config.experiment.episode_duration}<small> sec</small></strong></div><div><span>Replica rate</span><strong>${job.config.experiment.cost_per_replica_second ?? 0.01}<small> / sec</small></strong></div></div>}
+          <p className="text-[14px] leading-relaxed text-muted-foreground">Met requires every seed to reach the target. Violated means at least one seed cannot reach it. Pending outcomes may make a result inconclusive.</p>
+          {frontier.length > 0 && <div className="benchmark-chart-surface" aria-label="Mean operating cost versus lower SLO attainment bound">
             <ResponsiveContainer width="100%" height={300}>
               <ScatterChart margin={{ top: 15, right: 30, bottom: 25, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -183,7 +189,7 @@ export function BenchmarkPanel() {
                 <YAxis type="number" dataKey="attainment" name="Mean lower attainment bound" unit="%" domain={[0, 100]} />
                 <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
                   const point = payload?.[0]?.payload as (typeof frontier)[number] | undefined
-                  return active && point ? <div className="rounded border bg-background p-3 text-sm">
+                  return active && point ? <div className="rounded-lg border bg-card p-3 text-xs shadow-lg">
                     <p className="font-semibold">{point.name}</p>
                     <p>Mean cost: USD {format(point.cost)}</p>
                     <p>Mean lower attainment: {format(point.attainment)}%</p>
@@ -192,7 +198,7 @@ export function BenchmarkPanel() {
                 }} />
                 <ReferenceLine y={evaluatedTarget} stroke="#64748b" strokeDasharray="4 4" />
                 <Scatter name="Policies" data={frontier}>
-                  {frontier.map(row => <Cell key={row.name} fill={row.slo_status === 'met' ? '#16a34a' : row.slo_status === 'violated' ? '#dc2626' : '#d97706'} />)}
+                  {frontier.map(row => <Cell key={row.name} fill={row.slo_status === 'met' ? '#2da889' : row.slo_status === 'violated' ? '#dc7070' : '#cb9a48'} />)}
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>
@@ -201,14 +207,14 @@ export function BenchmarkPanel() {
             {['Policy / workload', 'Mean cost (USD)', 'SLO status', 'Met / violated / inconclusive', 'Mean attainment bounds', 'Mean overdue / pending', 'Savings vs baseline', 'Matched pairs'].map(h => <TableHead key={h}>{h}</TableHead>)}
           </TableRow></TableHeader><TableBody>{evaluations.map(row => <TableRow key={`${row.policy}-${row.workload}`}>
             <TableCell>{row.policy} / {row.workload}</TableCell>
-            <TableCell>{format(row.mean_cost)}</TableCell><TableCell>{row.slo_status}</TableCell>
+            <TableCell className="font-semibold">{format(row.mean_cost)}</TableCell><TableCell><span className={`status-pill status-${row.slo_status}`}>{row.slo_status}</span></TableCell>
             <TableCell>{row.slo_met_runs} / {row.slo_violated_runs} / {row.slo_inconclusive_runs} ({row.completed_runs}/{row.expected_runs} evaluated{row.failed_runs > 0 && `, ${row.failed_runs} failed`})</TableCell>
             <TableCell>{row.mean_attainment_lower === null ? 'N/A' : `${format(row.mean_attainment_lower * 100)}–${format((row.mean_attainment_upper ?? 0) * 100)}%`}</TableCell>
             <TableCell>{format(row.mean_overdue_requests)} / {format(row.mean_pending_requests)}</TableCell>
             <TableCell>{row.mean_cost_savings_percent === null ? 'N/A' : `${format(row.mean_cost_savings_percent)}%`} vs {row.baseline_policy}</TableCell>
             <TableCell>{row.matched_cost_pairs}</TableCell>
           </TableRow>)}</TableBody></Table>
-          <p className="text-sm text-muted-foreground">The chart shows means; SLO status checks each run separately. Pending requests have unexpired deadlines. Overdue unfinished requests count as violations. Savings alone do not imply SLO compliance. Older benchmarks use startup-only accounting and must be rerun for this evaluation.</p>
+          <details className="benchmark-methodology"><summary>How to interpret cost and SLO results</summary><p>The chart shows means; SLO status checks each run separately. Pending requests have unexpired deadlines. Overdue unfinished requests count as violations. Savings alone do not imply SLO compliance. Older benchmarks use startup-only accounting and must be rerun for this evaluation. Seeds: {job?.config.seeds.join(', ')}.</p></details>
         </div>
         <div><Label htmlFor="benchmark-metric">Comparison metric</Label>
           <Select id="benchmark-metric" value={metric} onChange={e => setMetric(e.target.value)}>
@@ -218,7 +224,7 @@ export function BenchmarkPanel() {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={chart}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="policy" />
               <YAxis domain={['auto', 'auto']} /><Tooltip />
-              <Bar dataKey="mean" fill="#3b82f6"><ErrorBar dataKey="interval" width={6} strokeWidth={2} /></Bar>
+              <Bar dataKey="mean" fill="#287d68" radius={[5, 5, 0, 0]} maxBarSize={90}><ErrorBar dataKey="interval" width={6} strokeWidth={1.5} /></Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>}
@@ -234,11 +240,11 @@ export function BenchmarkPanel() {
         {results.failed_runs > 0 && <details><summary>Failed runs</summary><ul>
           {results.result.runs.filter(r => r.status === 'failed').map(r => <li key={`${r.policy}-${r.workload}-${r.seed}`}>{r.policy}/{r.workload}/{r.seed}: {r.error}</li>)}
         </ul></details>}
-        <details><summary>Methodology and limitations</summary><ul>
+        <details className="benchmark-methodology"><summary>Methodology and limitations</summary><ul>
           {results.result.warnings.map(w => <li key={w}>{w}</li>)}
         </ul></details>
         {terminal && <div className="flex flex-wrap gap-2">
-          {['runs', 'aggregates', 'report', 'manifest'].map(a => <Button variant="outline" key={a} onClick={() => download(a)}>Download {a}</Button>)}
+          {['runs', 'aggregates', 'report', 'manifest'].map(a => <Button variant="outline" key={a} onClick={() => download(a)}><Download size={13} />{a === 'runs' ? 'Raw runs' : a === 'aggregates' ? 'Summary CSV' : a === 'report' ? 'Research report' : 'Manifest'}</Button>)}
         </div>}
       </>}
     </CardContent>

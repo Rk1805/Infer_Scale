@@ -329,8 +329,8 @@ export function PolicyComparison() {
                           const m = comparisonResults[p.value]
                           return m ? { policy: p.label, cost: m.total_cost, latency: m.p95_latency_ms } : null
                         }).filter(Boolean) as any[]}
-                        fill="#3b82f6"
-                        stroke="#3b82f6"
+                        fill="#287d68"
+                        stroke="#287d68"
                       />
                     </ScatterChart>
                   </ResponsiveContainer>
@@ -353,7 +353,7 @@ export function PolicyComparison() {
                       <XAxis dataKey="policy" name="Policy" />
                       <YAxis name="Avg Active Replicas" />
                       <Tooltip />
-                      <Bar dataKey="replicas" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="replicas" fill="#287d68" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -376,8 +376,8 @@ export function PolicyComparison() {
                       <YAxis name="Latency (ms)" />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="p50" name="p50" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="p95" name="p95" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="p50" name="p50" fill="#85a190" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="p95" name="p95" fill="#b28b57" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="p99" name="p99" fill="#ef4444" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>

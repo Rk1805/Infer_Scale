@@ -85,13 +85,16 @@ export function Simulation() {
 
   if (!id) {
     return (
-      <div className="p-6 text-center">
-        <h1 className="text-3xl font-bold mb-4">Simulation View</h1>
-        <p className="text-muted-foreground">Select an experiment from the history or launch a new one</p>
-        <Button onClick={() => navigate('/experiment-studio')} className="mt-4">
-          <Play className="mr-2 h-4 w-4" />
-          Launch New Experiment
-        </Button>
+      <div className="space-y-6">
+        <div><h1 className="page-heading">Simulation View</h1><p className="page-description">Follow the decisions behind every scaling policy.</p></div>
+        <section className="surface-card simulation-welcome">
+          <div className="simulation-diagram" aria-hidden="true"><div className="simulation-queue">{Array.from({ length: 8 }, (_, index) => <span key={index} />)}</div><span className="simulation-connector" /><div className="simulation-nodes">{[0, 1, 2].map(index => <span key={index}><Server size={22} strokeWidth={1.3} /><i /></span>)}</div></div>
+          <p className="eyebrow">Your experiment, in motion</p>
+          <h2>Start with a scaling experiment.</h2>
+          <p>Watch replicas respond to traffic, explore request latency,<br className="hidden sm:block" /> and understand the cost of each decision.</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3"><Button onClick={() => navigate('/experiment-studio')}><Play size={14} /> New experiment</Button><Button variant="outline" onClick={() => navigate('/experiment-history')}>Browse experiment history</Button></div>
+          <div className="simulation-features"><div><RotateCcw size={17} /><strong>Request timelines</strong><span>See where time is spent.</span></div><div><Server size={17} /><strong>Replica activity</strong><span>Follow capacity as it changes.</span></div><div><AlertCircle size={17} /><strong>Cost & SLO outcomes</strong><span>Keep performance in perspective.</span></div></div>
+        </section>
       </div>
     )
   }
@@ -233,8 +236,8 @@ export function Simulation() {
                   <YAxis label="Latency (ms)" />
                   <Tooltip />
                   <Legend />
-                  <Area type="monotone" dataKey="p50" name="p50" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} />
-                  <Area type="monotone" dataKey="p95" name="p95" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="p50" name="p50" stroke="#287d68" fill="#287d68" fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="p95" name="p95" stroke="#b28b57" fill="#b28b57" fillOpacity={0.1} />
                   <Area type="monotone" dataKey="p99" name="p99" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} />
                   <Line type="monotone" dataKey="sla" name="SLA Threshold" stroke="#6b7280" strokeDasharray="5 5" strokeWidth={2} />
                 </ComposedChart>
@@ -255,8 +258,8 @@ export function Simulation() {
                   <XAxis dataKey="time" label="Time (s)" />
                   <YAxis label="Queue Depth" />
                   <Tooltip />
-                  <Area type="monotone" dataKey="depth" name="Queue Depth" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.1} />
-                  <Area type="monotone" dataKey="waiting" name="Waiting Requests" stroke="#ec4899" fill="#ec4899" fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="depth" name="Queue Depth" stroke="#667c80" fill="#667c80" fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="waiting" name="Waiting Requests" stroke="#a57565" fill="#a57565" fillOpacity={0.1} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -275,9 +278,9 @@ export function Simulation() {
                   <XAxis dataKey="time" label="Time (s)" />
                   <YAxis label="Replicas" />
                   <Tooltip />
-                  <Area type="monotone" dataKey="active" name="Active" stroke="#22c55e" fill="#22c55e" fillOpacity={0.1} />
-                  <Area type="monotone" dataKey="starting" name="Starting" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} />
-                  <Area type="monotone" dataKey="total" name="Total" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.05} />
+                  <Area type="monotone" dataKey="active" name="Active" stroke="#85a190" fill="#85a190" fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="starting" name="Starting" stroke="#b28b57" fill="#b28b57" fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="total" name="Total" stroke="#287d68" fill="#287d68" fillOpacity={0.05} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -297,9 +300,9 @@ export function Simulation() {
                   <YAxis label="Requests/s" />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="throughput" name="Throughput" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="goodput" name="Goodput" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                  <Line type="monotone" dataKey="arrivals" name="Arrivals" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  <Bar dataKey="throughput" name="Throughput" fill="#287d68" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="goodput" name="Goodput" fill="#85a190" radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="arrivals" name="Arrivals" stroke="#b28b57" strokeWidth={2} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
@@ -601,7 +604,7 @@ function TimelineView({
                   y1={y}
                   x2={x2}
                   y2={y}
-                  stroke={isViolated ? '#ef4444' : '#3b82f6'}
+                  stroke={isViolated ? '#ef4444' : '#287d68'}
                   strokeWidth={3}
                   strokeLinecap="round"
                 />
@@ -611,7 +614,7 @@ function TimelineView({
                     y1={y}
                     x2={50 + (r.prefill_end - timeRange[0]) / (timeRange[1] - timeRange[0]) * 800}
                     y2={y}
-                    stroke="#f59e0b"
+                    stroke="#b28b57"
                     strokeWidth={2}
                     strokeLinecap="round"
                     opacity={0.7}
@@ -625,7 +628,7 @@ function TimelineView({
           {filteredActions.map((a) => {
             if (!a.time) return null
             const x = 50 + (a.time - timeRange[0]) / (timeRange[1] - timeRange[0]) * 800
-            const color = a.action === 'scale_up' ? '#22c55e' : a.action === 'scale_down' ? '#ef4444' : '#6b7280'
+            const color = a.action === 'scale_up' ? '#85a190' : a.action === 'scale_down' ? '#ef4444' : '#6b7280'
             
             return (
               <g key={`action-${a.time}`} onClick={() => onSelectStep(a)} style={{ cursor: 'pointer' }}>

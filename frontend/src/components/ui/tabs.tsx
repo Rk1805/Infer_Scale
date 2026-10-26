@@ -42,7 +42,7 @@ const TabsList = React.forwardRef<HTMLDivElement, TabsListProps>(
   ({ className, children, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground', className)}
+      className={cn('inline-flex min-h-10 max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/60 p-1 text-muted-foreground', className)}
       {...props}
     >
       {children}
@@ -64,11 +64,13 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
       <button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
-          isActive ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground',
+          'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+          isActive ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground',
           className
         )}
         onClick={() => onValueChange(value)}
+        type="button"
+        aria-pressed={isActive}
         {...props}
       >
         {children}

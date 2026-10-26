@@ -5,8 +5,16 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class',
+  safelist: [
+    { pattern: /^status-(completed|met|running|failed|violated|queued|inconclusive|unavailable|cancelled|cancelling)$/ },
+  ],
   theme: {
     extend: {
+      fontSize: {
+        xs: ['0.875rem', { lineHeight: '1.5' }],
+        sm: ['0.9375rem', { lineHeight: '1.6' }],
+        base: ['1rem', { lineHeight: '1.6' }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

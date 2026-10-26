@@ -1,340 +1,141 @@
-import { useHealth, useExperiments, useModels, useDatasets } from '../hooks/useData'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Button } from '../components/ui/button'
-import { Badge } from '../components/ui/badge'
-import { Separator } from '../components/ui/separator'
-import { Progress } from '../components/ui/progress'
-import { useToast } from '../components/ui/toast'
-import { api } from '../lib/api'
-import {
-CheckCircle,
-AlertCircle,
-Loader2,Brain,
-FlaskConical,
-GitCompare,TrendingUp,Database
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Boxes, Brain, Check, ChevronRight, CircleDot, Database, FlaskConical, GitCompare, Layers3, Plus, RefreshCw } from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
-import { formatPercent } from '../lib/utils'
+import { useBenchmark, useDatasets, useExperiments, useModels } from '../hooks/useData'
+import { api, BenchmarkJob } from '../lib/api'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
+
+const policyNames: Record<string, string> = { fixed: 'Fixed capacity', threshold: 'Threshold', queue: 'Queue-based', ppo: 'PPO' }
+const policyColors: Record<string, string> = { fixed: '#287d68', threshold: '#85a190', queue: '#667c80', ppo: '#b28b57' }
+const money = (value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+
+function relativeTime(value: string | null) {
+  if (!value) return 'Not started'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Date unavailable' : formatDistanceToNow(date, { addSuffix: true })
+}
 
 export function Overview() {
-  const { health, loading: healthLoading } = useHealth()
-  const { experiments } = useExperiments()
-  const { models } = useModels()
-  const { datasets } = useDatasets()
-  const { toast } = useToast()
+  const navigate = useNavigate()
+  const { experiments, loading: experimentsLoading, error: experimentsError, refetch } = useExperiments()
+  const { models, loading: modelsLoading } = useModels()
+  const { datasets, loading: datasetsLoading } = useDatasets()
+  const [benchmarks, setBenchmarks] = useState<BenchmarkJob[]>([])
+  const [benchmarksLoading, setBenchmarksLoading] = useState(true)
+  const [benchmarksError, setBenchmarksError] = useState<string | null>(null)
+  const latest = benchmarks.find(item => item.state === 'completed')
+  const { results, error: resultsError } = useBenchmark(latest?.id ?? null)
+  const workload = latest?.config.workloads[0]
+  const comparisons = results?.cost_slo.filter(row => row.workload === workload && row.mean_cost !== null) ?? []
+  const chart = comparisons.map(row => ({ name: policyNames[row.policy] ?? row.policy, cost: row.mean_cost, policy: row.policy }))
+  const completeExperiments = experiments.filter(item => item.state === 'completed').length
+  const activeExperiments = experiments.filter(item => item.state === 'running').length
 
-  const latestExperiment = experiments[0]
-  const latestModel = models[0]
+  useEffect(() => {
+    let active = true
+    api.listBenchmarks().then(data => { if (active) setBenchmarks(data) })
+      .catch(() => { if (active) setBenchmarksError('Benchmark history could not be loaded.') })
+      .finally(() => { if (active) setBenchmarksLoading(false) })
+    return () => { active = false }
+  }, [])
 
-  const handleQuickAction = async (action: string) => {
-    try {
-      if (action === 'train') {
-        const res = await api.startTraining({
-          timesteps: 5000,
-          n_steps: 512,
-          batch_size: 64,
-          n_epochs: 10,
-          learning_rate: 3e-4,
-          gamma: 0.99,
-          hidden_units: 128,
-          reward_alpha: 0.1,
-          reward_beta: 1.0,
-          reward_gamma: 0.01,
-          reward_delta: 0.01,
-          dataset_id: 'synthetic',
-          workload_type: 'mixed',
-          short_run: true,
-        })
-        toast(`Training started: ${res.id}`, 'success')
-        window.location.href = `/training-lab`
-      } else if (action === 'simulate') {
-        const res = await api.createExperiment({
-          workload_type: 'steady',
-          dataset_id: 'synthetic',
-          trace_window_minutes: 30,
-          policy: 'threshold',
-          initial_replicas: 2,
-          min_replicas: 1,
-          max_replicas: 8,
-          replica_startup_delay: 10,
-          scaling_cooldown: 30,
-          decision_interval: 5,
-          episode_duration: 3600,
-          sla_threshold: 30,
-          random_seed: 42,
-          reward_alpha: 0.1,
-          reward_beta: 1.0,
-          reward_gamma: 0.01,
-          reward_delta: 0.01,
-          ppo_timesteps: 100000,
-          ppo_alpha: 0.1,
-          ppo_beta: 0.01,
-          ppo_gamma: 0.99,
-          short_run: true,
-        })
-        toast(`Simulation started: ${res.id}`, 'success')
-        window.location.href = `/simulation/${res.id}`
-      } else if (action === 'compare') {
-        window.location.href = '/policy-comparison'
-      }
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Action failed', 'destructive')
-    }
-  }
+  const stats = [
+    { label: 'Total experiments', value: experimentsLoading ? '—' : experiments.length.toLocaleString(), detail: `${completeExperiments} completed`, icon: FlaskConical, color: 'violet', suffix: activeExperiments ? `${activeExperiments} running` : null },
+    { label: 'Saved benchmarks', value: benchmarksLoading ? '—' : benchmarks.length.toLocaleString(), detail: 'Reproducible policy comparisons', icon: GitCompare, color: 'blue', suffix: null },
+    { label: 'Registered models', value: modelsLoading ? '—' : models.length.toLocaleString(), detail: 'PPO model registry', icon: Brain, color: 'amber', suffix: null },
+    { label: 'Available datasets', value: datasetsLoading ? '—' : datasets.length.toLocaleString(), detail: 'Workload sources', icon: Database, color: 'green', suffix: null },
+  ]
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge variant="default"><CheckCircle className="mr-1 h-3 w-3" /> Completed</Badge>
-      case 'running':
-        return <Badge variant="secondary"><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Running</Badge>
-      case 'failed':
-        return <Badge variant="destructive"><AlertCircle className="mr-1 h-3 w-3" /> Failed</Badge>
-      case 'cancelled':
-        return <Badge variant="outline">Cancelled</Badge>
-      default:
-        return <Badge variant="outline">Queued</Badge>
-    }
-  }
-
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Overview</h1>
-          <p className="text-muted-foreground">InferScale dashboard - LLM inference autoscaling with RL</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {healthLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          ) : health?.status === 'ok' ? (
-            <Badge variant="default"><CheckCircle className="mr-1 h-3 w-3" /> API Healthy</Badge>
-          ) : (
-            <Badge variant="destructive"><AlertCircle className="mr-1 h-3 w-3" /> API Unhealthy</Badge>
-          )}
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Datasets</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{datasets.length}</div>
-            <p className="text-xs text-muted-foreground">Available datasets</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Experiments</CardTitle>
-            <FlaskConical className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{experiments.length}</div>
-            <p className="text-xs text-muted-foreground">Total experiments run</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Models</CardTitle>
-            <Brain className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{models.length}</div>
-            <p className="text-xs text-muted-foreground">Trained PPO models</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Latest Experiment</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {latestExperiment ? (
-                <>
-                  {getStatusBadge(latestExperiment.state)}
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {latestExperiment.started_at && formatDistanceToNow(new Date(latestExperiment.started_at), { addSuffix: true })}
-                  </span>
-                </>
-              ) : (
-                <span className="text-muted-foreground">No experiments yet</span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Latest Experiment Details */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Latest Experiment Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {latestExperiment ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  {getStatusBadge(latestExperiment.state)}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Policy</span>
-                  <Badge variant="outline">{latestExperiment.config.policy}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Workload</span>
-                  <Badge variant="outline">{latestExperiment.config.workload_type}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Progress</span>
-                  <div className="w-48">
-                    <Progress value={latestExperiment.progress * 100} />
-                  </div>
-                </div>
-                {latestExperiment.results && (
-                  <Separator />
-                )}
-                {latestExperiment.results && (
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Total Cost</span>
-                      <div className="font-medium">${latestExperiment.results.total_cost.toFixed(2)}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Avg Replicas</span>
-                      <div className="font-medium">{latestExperiment.results.avg_active_replicas.toFixed(1)}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">p95 Latency</span>
-                      <div className="font-medium">{latestExperiment.results.p95_latency_ms.toFixed(1)}ms</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">SLA Violations</span>
-                      <div className="font-medium">{formatPercent(latestExperiment.results.sla_violation_rate)}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">No experiments run yet. Create one in Experiment Studio.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Latest PPO Model</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {latestModel ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge variant="outline">Registered</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Timesteps</span>
-                  <Badge variant="outline">{latestModel.config.timesteps.toLocaleString()}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Dataset</span>
-                  <Badge variant="outline">{latestModel.config.dataset_id}</Badge>
-                </div>
-                {latestModel.metrics && (
-                  <Separator />
-                )}
-                {latestModel.metrics && (
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Final Reward</span>
-                      <div className="font-medium">{latestModel.metrics.final_reward.toFixed(3)}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Avg Eval Reward</span>
-                      <div className="font-medium">{latestModel.metrics.avg_eval_reward.toFixed(3)}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Training Time</span>
-                      <div className="font-medium">{latestModel.metrics.training_time_seconds.toFixed(0)}s</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">No models trained yet. Start training in Training Lab.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <Button onClick={() => handleQuickAction('train')} className="gap-2">
-              <Brain className="h-4 w-4" />
-              Train PPO (Smoke Test)
-            </Button>
-            <Button onClick={() => handleQuickAction('simulate')} variant="secondary" className="gap-2">
-              <FlaskConical className="h-4 w-4" />
-              Run Simulation
-            </Button>
-            <Button onClick={() => handleQuickAction('compare')} variant="outline" className="gap-2">
-              <GitCompare className="h-4 w-4" />
-              Compare Policies
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Experiments */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Recent Experiments</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => window.location.href = '/experiment-history'}>
-            View All
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {experiments.length > 0 ? (
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {experiments.slice(0, 10).map((exp) => (
-                <div key={exp.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-lg bg-muted">
-                      <FlaskConical className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{exp.id}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {exp.config.policy} • {exp.config.workload_type} • {exp.config.dataset_id}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted-foreground">
-                      {exp.started_at && formatDistanceToNow(new Date(exp.started_at), { addSuffix: true })}
-                    </span>
-                    {getStatusBadge(exp.state)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">No experiments yet</p>
-          )}
-        </CardContent>
-      </Card>
+  return <div className="overview-page space-y-7">
+    <div className="overview-heading">
+      <div><p className="eyebrow mb-2.5">Your research, at a glance</p><h1 className="page-heading">Research overview</h1>
+        <p className="page-description">A clearer view of your inference experiments, costs, and performance.</p></div>
+      <Button onClick={() => navigate('/experiment-studio')}><Plus size={15} /> New experiment</Button>
     </div>
-  )
+    {(experimentsError || benchmarksError || resultsError) && <div role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive">{experimentsError || benchmarksError || resultsError}</div>}
+    <div className="overview-stats">
+      {stats.map(stat => <div className="surface-card stat-card" key={stat.label}>
+        <div className="stat-topline"><span>{stat.label}</span><span className={cn('stat-icon', `stat-icon-${stat.color}`)}><stat.icon size={16} strokeWidth={1.7} /></span></div>
+        <div className="stat-value">{stat.value}</div>
+        <div className="stat-caption"><span>{stat.detail}</span>{stat.suffix && <span className="stat-live">{stat.suffix}</span>}</div>
+      </div>)}
+    </div>
+    <div className="overview-primary-grid">
+      <section className="surface-card overview-cost-card">
+        <div className="overview-card-heading">
+          <div><div className="flex items-center gap-2"><span className="section-icon"><GitCompare size={16} /></span><h2 className="section-heading">Policy cost comparison</h2></div>
+            <p className="mt-2 text-xs text-muted-foreground">{latest ? `Latest completed benchmark · ${workload?.replace(/_/g, ' ')}` : 'Compare the operating cost of your scaling policies.'}</p></div>
+          {results && <span className="chart-run-label"><span /> {results.successful_runs} simulation runs</span>}
+        </div>
+        {chart.length > 0 ? <>
+          <div className="overview-chart" aria-label="Mean simulated operating cost by policy">
+            <span className="chart-unit-label">MEAN COST · USD</span>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={chart} margin={{ top: 30, right: 15, left: -20, bottom: 0 }} barSize={48}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tickFormatter={value => money(Number(value))} tickCount={5} />
+                <Tooltip formatter={value => [money(Number(value)), 'Mean operating cost']} cursor={{ fill: 'hsl(var(--muted) / .5)' }} />
+                <Bar dataKey="cost" radius={[5, 5, 0, 0]}>
+                  {chart.map(row => <Cell key={row.policy} fill={policyColors[row.policy]} />)}
+                  <LabelList dataKey="cost" position="top" formatter={(value: number) => money(value)} className="cost-bar-label" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="overview-chart-footer"><span><CircleDot size={13} /> Costs are simulated. Check SLO outcomes alongside savings.</span>
+            <Link className="text-link" to={`/policy-comparison?benchmark=${latest?.id}`}>Explore results <ArrowUpRight size={14} /></Link></div>
+        </> : <div className="chart-empty-state">
+          <div className="empty-chart-bars" aria-hidden="true"><span /><span /><span /><span /></div>
+          <h3>{benchmarksLoading || (latest && !results && !resultsError) ? 'Loading benchmark results' : 'Your next insight starts here'}</h3>
+          <p>Run a benchmark to see real policy costs and response-time outcomes.</p>
+          <Link className="text-link" to="/policy-comparison">Compare policies <ArrowRight size={14} /></Link>
+        </div>}
+      </section>
+      <div className="overview-right-column">
+        <section className="experiment-launch-card">
+          <div className="launch-card-kicker"><span /><span>THE EXPERIMENT STUDIO</span></div>
+          <div className="replica-illustration" aria-hidden="true"><div className="replica-line" />
+            {[0, 1, 2].map(index => <div className="replica-node" key={index}><Boxes size={23} strokeWidth={1.3} /><span /><span /><span /></div>)}
+          </div>
+          <h2>Make your next<br />scaling decision smarter.</h2>
+          <p>Choose a workload. Set your targets.<br />See how your policies perform.</p>
+          <Link to="/experiment-studio" className="launch-card-link">Create an experiment <ArrowUpRight size={16} /></Link>
+        </section>
+        <div className="surface-card environment-card"><span className="environment-icon"><Layers3 size={19} /></span>
+          <div><strong>CPU simulation environment</strong><p>Explore policies without a GPU.</p></div><span className="environment-chip">LOCAL</span></div>
+      </div>
+    </div>
+    <div className="overview-bottom-grid">
+      <section className="surface-card overflow-hidden">
+        <div className="overview-card-heading">
+          <div className="flex items-center gap-2"><span className="section-icon"><Activity size={16} /></span><h2 className="section-heading">Recent experiments</h2></div>
+          <div className="flex items-center gap-3"><button className="icon-control !h-7 !w-7" aria-label="Refresh experiments" onClick={refetch}><RefreshCw size={14} className={experimentsLoading ? 'animate-spin' : ''} /></button><Link to="/experiment-history" className="text-link">View all <ArrowRight size={13} /></Link></div>
+        </div>
+        {experiments.length > 0 ? <Table>
+          <TableHeader><TableRow><TableHead>Experiment</TableHead><TableHead>Policy</TableHead><TableHead>Status</TableHead><TableHead>Started</TableHead><TableHead><span className="sr-only">Open</span></TableHead></TableRow></TableHeader>
+          <TableBody>{experiments.slice(0, 5).map(experiment => <TableRow key={experiment.id}>
+            <TableCell><Link className="experiment-id" to={`/simulation/${experiment.id}`}><FlaskConical size={14} />{experiment.id}</Link><span className="experiment-workload">{experiment.config.workload_type.replace(/_/g, ' ')}</span></TableCell>
+            <TableCell><span className="policy-table-label">{policyNames[experiment.config.policy] ?? experiment.config.policy}</span></TableCell>
+            <TableCell><span className={cn('status-pill', `status-${experiment.state}`)}>{experiment.state}</span></TableCell>
+            <TableCell className="text-[14px] text-muted-foreground">{relativeTime(experiment.started_at)}</TableCell>
+            <TableCell><Link to={`/simulation/${experiment.id}`} aria-label={`Open experiment ${experiment.id}`} className="icon-control !h-6 !w-6"><ChevronRight size={15} /></Link></TableCell>
+          </TableRow>)}</TableBody>
+        </Table> : <div className="py-14 text-center"><FlaskConical size={24} className="mx-auto mb-3 text-muted-foreground/50" /><p className="text-sm font-medium">No experiments yet</p><p className="mt-1 text-xs text-muted-foreground">Create your first experiment to start exploring.</p></div>}
+      </section>
+      <section className="surface-card research-workflow">
+        <div className="overview-card-heading"><h2 className="section-heading">From question to insight</h2><ArrowDownRight size={18} className="text-muted-foreground" /></div>
+        {[
+          { step: '01', title: 'Choose your workload', detail: 'Understand the traffic you want to serve.', href: '/dataset-explorer', icon: Database },
+          { step: '02', title: 'Put policies to the test', detail: 'Compare cost and response-time targets.', href: '/policy-comparison', icon: GitCompare },
+          { step: '03', title: 'Keep the evidence', detail: 'Revisit runs and export your findings.', href: '/experiment-history', icon: Check },
+        ].map(item => <Link key={item.step} to={item.href} className="workflow-step"><span className="workflow-number">{item.step}</span><div><strong>{item.title}</strong><p>{item.detail}</p></div><item.icon size={16} /></Link>)}
+        <div className="workflow-note"><span /><span>Every experiment is a step toward better inference.</span></div>
+      </section>
+    </div>
+  </div>
 }

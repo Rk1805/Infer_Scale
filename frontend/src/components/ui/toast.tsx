@@ -10,10 +10,10 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
     <div
       ref={ref}
       className={cn(
-        'rounded-lg border p-4 shadow-lg animate-in slide-in-from-top-full sm:slide-in-from-bottom-full',
+        'rounded-xl border bg-card p-4 text-sm shadow-xl',
         {
-          'border-destructive bg-destructive/10 text-destructive': variant === 'destructive',
-          'border-green-500 bg-green-500/10 text-green-500': variant === 'success',
+          'border-destructive/30 text-destructive': variant === 'destructive',
+          'border-emerald-500/30 text-emerald-600 dark:text-emerald-400': variant === 'success',
           'border-border bg-background': variant === 'default',
         },
         className
@@ -65,7 +65,7 @@ export function ToastContainer() {
   const { toasts } = useToast()
   
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-80">
+    <div className="fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" aria-live="polite">
       {toasts.map((t) => (
         <Toast key={t.id} variant={t.variant}>
           {t.message}

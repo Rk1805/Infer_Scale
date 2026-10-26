@@ -409,7 +409,7 @@ export function TrainingLab() {
                     type="monotone"
                     dataKey="reward"
                     name="Episode Reward"
-                    stroke="#3b82f6"
+                    stroke="#287d68"
                     strokeWidth={2}
                     dot={false}
                   />
@@ -418,7 +418,7 @@ export function TrainingLab() {
                       type="monotone"
                       dataKey="reward"
                       name="Eval Reward"
-                      stroke="#22c55e"
+                      stroke="#85a190"
                       strokeWidth={2}
                       dot={false}
                       data={evalRewards.map((r, i) => ({ step: i * 10, reward: r }))}
