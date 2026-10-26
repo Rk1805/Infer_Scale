@@ -2,6 +2,12 @@
 
 **Autonomous LLM Inference Autoscaling with Reinforcement Learning**
 
+**Current scope:** a CPU-based simulation and research dashboard. PPO training is
+available through the CLI; live GPU utilisation, inference batch-size actions,
+verified Azure/BurstGPT training, and Kubernetes HPA validation are not yet complete.
+See the [implementation audit against the project description](docs/project_description_audit.md)
+for supported behavior, source evidence, validation limits, and remaining work.
+
 InferScale investigates whether reinforcement learning can reduce the compute cost of LLM inference serving while maintaining response-time service-level objectives (SLOs). The system compares four autoscaling policies:
 
 1. **Fixed Capacity** - Always maintains a constant number of replicas
@@ -88,6 +94,25 @@ make evaluate
 # Run policy comparison benchmark
 make benchmark
 ```
+
+## Advanced Benchmarking Contribution
+
+The Policy Comparison page now includes **Advanced Benchmarking**: shared workload
+traces across policies, independent workload seeds, run-level statistical summaries,
+95% Student's t intervals, matched policy differences, and downloadable CSV/Markdown
+reports with reproducibility metadata. PPO evaluation requires an existing checkpoint
+and never falls back to another policy.
+
+```bash
+python -m inferscale.cli benchmark --policies fixed threshold queue --seeds 11 22 33 44 55 --workloads flash_crowd --duration 600
+```
+
+See [Advanced Benchmarking: methodology and assessment guide](docs/advanced_benchmarking.md)
+for architecture, API endpoints, tests, report exports, and interpretation. Results
+are analytical simulation estimates; the inherited cost metric accounts for startup
+charges only in legacy results. New runs use runtime accounting v2; see
+[cost accounting and SLO evaluation](docs/cost_and_slo.md) for billing rules,
+deadline handling, matched savings, and dashboard usage.
 
 ## Dashboard Pages
 

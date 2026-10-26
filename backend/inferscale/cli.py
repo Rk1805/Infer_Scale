@@ -49,15 +49,21 @@ def run_sim(args):
         if args.workload_type == "mixed":
             requests = []
             for wt in ["steady", "periodic", "flash_crowd"]:
-                requests.extend(SYNTHETIC_WORKLOADS[wt](num_requests=1000))
+                requests.extend(SYNTHETIC_WORKLOADS[wt](num_requests=1000, start_time_seconds=0.0))
         else:
             gen_func = SYNTHETIC_WORKLOADS.get(args.workload_type, SYNTHETIC_WORKLOADS["steady"])
-            requests = gen_func()
+            requests = gen_func(start_time_seconds=0.0)
     else:
         requests = load_requests(args.dataset)
+        if requests:
+            origin = min(r.arrival_time_seconds for r in requests)
+            requests = [
+                r.model_copy(update={"arrival_time_seconds": r.arrival_time_seconds - origin})
+                for r in requests
+            ]
     
     # Apply trace window
-    if args.trace_window > 0:
+    if args.trace_window > 0 and requests:
         start_time = min(r.arrival_time_seconds for r in requests)
         end_time = start_time + args.trace_window * 60
         requests = [r for r in requests if r.arrival_time_seconds <= end_time]
@@ -74,6 +80,8 @@ def run_sim(args):
         "decision_interval": args.decision_interval,
         "episode_duration": args.episode_duration,
         "sla_threshold": args.sla_threshold,
+        "cost_per_replica_second": args.cost_per_replica_second,
+        "slo_target": args.slo_target,
         "replica_capacity": 10,
         "random_seed": args.seed,
         "fixed_capacity": args.fixed_capacity,
@@ -100,6 +108,8 @@ def run_sim(args):
         sla_threshold=args.sla_threshold,
         replica_capacity=10,
         seed=args.seed,
+        cost_per_replica_second=args.cost_per_replica_second,
+        slo_target=args.slo_target,
     )
     
     events = []
@@ -129,7 +139,11 @@ def run_sim(args):
     print(f"p50 Latency: {metrics['p50_latency_ms']:.1f}ms")
     print(f"p95 Latency: {metrics['p95_latency_ms']:.1f}ms")
     print(f"p99 Latency: {metrics['p99_latency_ms']:.1f}ms")
-    print(f"SLA Violation Rate: {metrics['sla_violation_rate']*100:.1f}%")
+    rate = metrics['sla_violation_rate']
+    print("SLO Violation Rate: " + (f"{rate * 100:.1f}%" if rate is not None else "N/A"))
+    print(f"Billable replica-seconds: {metrics['total_replica_seconds']:.2f}")
+    print(f"Overdue / pending: {metrics['overdue_requests']} / {metrics['pending_requests']}")
+    print(f"SLO met: {metrics['slo_met']} (None means inconclusive)")
     print(f"Goodput: {metrics['goodput']:.2f} req/s")
     print(f"Throughput: {metrics['throughput']:.2f} req/s")
     print(f"Max Queue Depth: {metrics['max_queue_depth']}")
@@ -165,7 +179,7 @@ def train_ppo(args):
     # Create synthetic requests for training
     requests = []
     for wt in ["steady", "periodic", "flash_crowd"]:
-        requests.extend(SYNTHETIC_WORKLOADS[wt](num_requests=2000))
+        requests.extend(SYNTHETIC_WORKLOADS[wt](num_requests=2000, start_time_seconds=0.0))
     
     env_config = {
         "initial_replicas": 2,
@@ -253,7 +267,7 @@ def evaluate_model(args):
     # Generate test requests
     requests = []
     for wt in ["steady", "periodic", "flash_crowd"]:
-        requests.extend(SYNTHETIC_WORKLOADS[wt](num_requests=1000))
+        requests.extend(SYNTHETIC_WORKLOADS[wt](num_requests=1000, start_time_seconds=0.0))
     
     env_config = {
         "initial_replicas": 2,
@@ -319,90 +333,46 @@ def evaluate_model(args):
     print(f"p50 Latency: {metrics['p50_latency_ms']:.1f}ms")
     print(f"p95 Latency: {metrics['p95_latency_ms']:.1f}ms")
     print(f"p99 Latency: {metrics['p99_latency_ms']:.1f}ms")
-    print(f"SLA Violation Rate: {metrics['sla_violation_rate']*100:.1f}%")
+    rate = metrics['sla_violation_rate']
+    print("SLO Violation Rate: " + (f"{rate * 100:.1f}%" if rate is not None else "N/A"))
     print(f"Goodput: {metrics['goodput']:.2f} req/s")
     print(f"Throughput: {metrics['throughput']:.2f} req/s")
 
 
 def benchmark(args):
-    """Run benchmark comparing all policies."""
-    print("Running benchmark across all policies...")
-    
-    # Generate test workloads
-    workloads = {
-        "steady": SYNTHETIC_WORKLOADS["steady"](num_requests=2000),
-        "periodic": SYNTHETIC_WORKLOADS["periodic"](num_requests=2000),
-        "flash_crowd": SYNTHETIC_WORKLOADS["flash_crowd"](num_requests=2000),
-    }
-    
-    policies = ["fixed", "threshold", "queue"]
-    if args.include_ppo and args.ppo_model:
+    """Run a reproducible policy matrix and export run-level research artifacts."""
+    import uuid
+
+    from inferscale.experiments.benchmark import run_benchmark
+    from inferscale.experiments.reporting import write_reports
+    from inferscale.schemas.benchmark import BenchmarkConfig
+    from inferscale.schemas.experiment import ExperimentConfig
+
+    policies = args.policies or ["fixed", "threshold", "queue"]
+    if args.include_ppo and "ppo" not in policies:
         policies.append("ppo")
-    
-    results = {}
-    
-    for wl_name, requests in workloads.items():
-        print(f"\n--- Workload: {wl_name} ({len(requests)} requests) ---")
-        results[wl_name] = {}
-        
-        for policy_name in policies:
-            print(f"  Running {policy_name}...", end=" ", flush=True)
-            
-            config = {
-                "initial_replicas": 2,
-                "min_replicas": 1,
-                "max_replicas": 8,
-                "startup_delay": 10.0,
-                "cooldown": 30.0,
-                "decision_interval": 5.0,
-                "episode_duration": 3600.0,
-                "sla_threshold": 30.0,
-                "replica_capacity": 10,
-                "random_seed": 42,
-                "fixed_capacity": 4,
-                "threshold_upper": 0.75,
-                "threshold_lower": 0.25,
-                "scaling_in_duration": 60,
-                "queue_based_target": 0.5,
-                "queue_scale_up": 1.0,
-                "queue_scale_down": 0.2,
-                "model_path": args.ppo_model,
-            }
-            
-            policy = get_policy(policy_name, config)
-            
-            engine = SimulatorEngine(
-                requests=requests,
-                initial_replicas=2,
-                min_replicas=1,
-                max_replicas=8,
-                startup_delay=10.0,
-                cooldown=30.0,
-                decision_interval=5.0,
-                episode_duration=3600.0,
-                sla_threshold=30.0,
-                replica_capacity=10,
-                seed=42,
-            )
-            
-            while engine.events and engine.current_time < 3600.0:
-                result = engine.step()
-                if result and result.get("decision_point"):
-                    obs = result["observation"]
-                    obs["time"] = engine.current_time
-                    action = policy.act(obs, engine)
-                    engine.take_action(action)
-            
-            metrics = engine.get_metrics()
-            results[wl_name][policy_name] = metrics
-            
-            print(f"Cost=${metrics['total_cost']:.2f}, p95={metrics['p95_latency_ms']:.1f}ms, SLA={metrics['sla_violation_rate']*100:.1f}%")
-    
-    # Save results
+    config = BenchmarkConfig(
+        experiment=ExperimentConfig(
+            episode_duration=args.duration, sla_threshold=args.sla_threshold,
+            cost_per_replica_second=args.cost_per_replica_second, slo_target=args.slo_target,
+        ),
+        policies=policies, workloads=args.workloads, seeds=args.seeds,
+        num_requests=args.num_requests, checkpoint_path=args.ppo_model,
+        trace_path=args.trace, evaluation_split=args.evaluation_split,
+        baseline_policy=args.baseline_policy,
+    )
+    result = run_benchmark(config)
+    identifier = str(uuid.uuid4())
+    directory = write_reports(result, args.reports_dir, identifier)
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-    with open(args.output, "w") as f:
-        json.dump(results, f, indent=2, default=str)
-    print(f"\nBenchmark results saved to {args.output}")
+    Path(args.output).write_text(result.model_dump_json(indent=2), encoding="utf-8")
+    successful = sum(run.status == "completed" for run in result.runs)
+    print(f"{successful}/{len(result.runs)} runs completed; reports: {directory}")
+    for run in result.runs:
+        if run.error:
+            print(f"FAILED {run.workload}/{run.seed}/{run.policy}: {run.error}")
+    if successful != len(result.runs):
+        raise SystemExit(1)
 
 
 def main():
@@ -429,6 +399,9 @@ def main():
     sim_parser.add_argument("--decision-interval", type=float, default=5)
     sim_parser.add_argument("--episode-duration", type=float, default=3600)
     sim_parser.add_argument("--sla-threshold", type=float, default=30)
+    sim_parser.add_argument("--slo-target", type=float, default=0.99)
+    sim_parser.add_argument("--cost-per-replica-second", type=float,
+                            default=settings.gpu_cost_per_replica_second)
     sim_parser.add_argument("--seed", type=int, default=42)
     sim_parser.add_argument("--fixed-capacity", type=int, default=4)
     sim_parser.add_argument("--model-path", help="Path to PPO model (for ppo policy)")
@@ -456,6 +429,25 @@ def main():
     bench_parser.add_argument("--output", default="results/benchmark.json")
     bench_parser.add_argument("--include-ppo", action="store_true")
     bench_parser.add_argument("--ppo-model", help="Path to PPO model for benchmark")
+    bench_parser.add_argument(
+        "--policies", nargs="+", choices=["fixed", "threshold", "queue", "ppo"])
+    bench_parser.add_argument("--seeds", nargs="+", type=int, default=[11, 22, 33, 44, 55])
+    bench_parser.add_argument(
+        "--workloads", nargs="+", default=["steady", "periodic", "flash_crowd"],
+        choices=["steady", "periodic", "flash_crowd", "mixed"])
+    bench_parser.add_argument("--duration", type=float, default=3600)
+    bench_parser.add_argument("--num-requests", type=int, default=5000)
+    bench_parser.add_argument("--sla-threshold", type=float, default=30)
+    bench_parser.add_argument("--slo-target", type=float, default=0.99)
+    bench_parser.add_argument("--cost-per-replica-second", type=float,
+                              default=settings.gpu_cost_per_replica_second)
+    bench_parser.add_argument("--baseline-policy", default="fixed",
+                              choices=["fixed", "threshold", "queue", "ppo"])
+    bench_parser.add_argument("--trace", help="Trusted local canonical CSV/JSON trace")
+    bench_parser.add_argument("--evaluation-split", default="unverified")
+    bench_parser.add_argument(
+        "--reports-dir", default=str(Path(settings.reports_dir) / "benchmarks"))
+
     
     args = parser.parse_args()
     

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from '../lib/utils'
+import { cn } from '../../lib/utils'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive'
@@ -9,20 +9,20 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'default', loading, children, disabled, ...props }, ref) => {
-    const baseClasses = 'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
+    const baseClasses = 'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-transparent text-sm font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/20 active:translate-y-px disabled:pointer-events-none disabled:opacity-45'
     
     const variants = {
-      primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-      secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-      outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+      primary: 'bg-primary text-primary-foreground shadow-sm shadow-primary/15 hover:bg-primary/90',
+      secondary: 'border-border bg-secondary text-secondary-foreground hover:bg-secondary/70',
+      outline: 'border-border bg-card text-foreground shadow-sm hover:border-primary/30 hover:bg-accent',
       ghost: 'hover:bg-accent hover:text-accent-foreground',
       destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
     }
     
     const sizes = {
-      sm: 'h-9 rounded-md px-3',
-      default: 'h-10 px-4 py-2',
-      lg: 'h-11 rounded-md px-8',
+      sm: 'h-10 px-3',
+      default: 'h-11 px-4 py-2',
+      lg: 'h-12 px-6',
     }
 
     return (

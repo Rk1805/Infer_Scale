@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useExperiments, useDatasets } from '../hooks/useData'
 import { api, ExperimentConfig, ExperimentMetrics } from '../lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -8,29 +8,28 @@ import { Label } from '../components/ui/label'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
-import { Separator } from '../components/ui/separator'
 import { useToast } from '../components/ui/toast'
 import {
-  Download,
-  GitCompare,
-  Loader2,
-  Play,
-  BarChart3,
-  TrendingUp,
+Download,
+GitCompare,
+Loader2,
+Play
 } from 'lucide-react'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ScatterChart,
-  Scatter,
+BarChart,
+Bar,
+XAxis,
+YAxis,
+CartesianGrid,
+Tooltip,
+Legend,
+ResponsiveContainer,
+ScatterChart,
+Scatter,
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
+import { BenchmarkPanel } from '../components/BenchmarkPanel'
+import { formatPercent } from '../lib/utils'
 
 const POLICIES = [
   { value: 'fixed', label: 'Fixed Capacity' },
@@ -40,7 +39,7 @@ const POLICIES = [
 ]
 
 export function PolicyComparison() {
-  const { experiments, loading: expLoading, refetch: refetchExp } = useExperiments()
+  const { experiments } = useExperiments()
   const { datasets } = useDatasets()
   const { toast } = useToast()
 
@@ -109,7 +108,7 @@ export function PolicyComparison() {
         m.p50_latency_ms.toFixed(1),
         m.p95_latency_ms.toFixed(1),
         m.p99_latency_ms.toFixed(1),
-        (m.sla_violation_rate * 100).toFixed(2),
+        m.sla_violation_rate == null ? '' : (m.sla_violation_rate * 100).toFixed(2),
         m.goodput.toFixed(2),
         m.throughput.toFixed(2),
         m.max_queue_depth.toString(),
@@ -131,11 +130,6 @@ export function PolicyComparison() {
     a.click()
     URL.revokeObjectURL(url)
   }
-
-  const policiesWithResults = POLICIES.map((p) => ({
-    ...p,
-    metrics: comparisonResults[p.value],
-  }))
 
   return (
     <div className="p-6 space-y-6">
@@ -159,6 +153,8 @@ export function PolicyComparison() {
           </Button>
         </div>
       </div>
+
+      <BenchmarkPanel />
 
       {/* Configuration */}
       <Card>
@@ -239,7 +235,7 @@ export function PolicyComparison() {
                       <MetricRow label="Cost" value={`$${m.total_cost.toFixed(2)}`} />
                       <MetricRow label="Avg Replicas" value={m.avg_active_replicas.toFixed(1)} />
                       <MetricRow label="p95 Latency" value={`${m.p95_latency_ms.toFixed(1)}ms`} />
-                      <MetricRow label="SLA Violations" value={`${(m.sla_violation_rate * 100).toFixed(1)}%`} />
+                      <MetricRow label="SLO Violations" value={formatPercent(m.sla_violation_rate)} />
                       <MetricRow label="Goodput" value={`${m.goodput.toFixed(2)} req/s`} />
                     </div>
                   </CardContent>
@@ -285,7 +281,7 @@ export function PolicyComparison() {
                         <TableCell>{m.p50_latency_ms.toFixed(1)}ms</TableCell>
                         <TableCell>{m.p95_latency_ms.toFixed(1)}ms</TableCell>
                         <TableCell>{m.p99_latency_ms.toFixed(1)}ms</TableCell>
-                        <TableCell>{(m.sla_violation_rate * 100).toFixed(1)}%</TableCell>
+                        <TableCell>{formatPercent(m.sla_violation_rate)}</TableCell>
                         <TableCell>{m.goodput.toFixed(2)}</TableCell>
                         <TableCell>{m.throughput.toFixed(2)}</TableCell>
                         <TableCell>{m.max_queue_depth}</TableCell>
@@ -333,9 +329,8 @@ export function PolicyComparison() {
                           const m = comparisonResults[p.value]
                           return m ? { policy: p.label, cost: m.total_cost, latency: m.p95_latency_ms } : null
                         }).filter(Boolean) as any[]}
-                        fill="#3b82f6"
-                        stroke="#3b82f6"
-                        size={8}
+                        fill="#287d68"
+                        stroke="#287d68"
                       />
                     </ScatterChart>
                   </ResponsiveContainer>
@@ -358,7 +353,7 @@ export function PolicyComparison() {
                       <XAxis dataKey="policy" name="Policy" />
                       <YAxis name="Avg Active Replicas" />
                       <Tooltip />
-                      <Bar dataKey="replicas" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="replicas" fill="#287d68" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -381,8 +376,8 @@ export function PolicyComparison() {
                       <YAxis name="Latency (ms)" />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="p50" name="p50" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="p95" name="p95" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="p50" name="p50" fill="#85a190" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="p95" name="p95" fill="#b28b57" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="p99" name="p99" fill="#ef4444" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -399,7 +394,7 @@ export function PolicyComparison() {
                   <ResponsiveContainer width="100%" height={350}>
                     <BarChart data={POLICIES.map((p) => {
                       const m = comparisonResults[p.value]
-                      return m ? { policy: p.label, violations: m.sla_violation_rate * 100 } : null
+                      return m ? { policy: p.label, violations: m.sla_violation_rate == null ? null : m.sla_violation_rate * 100 } : null
                     }).filter(Boolean) as any[]}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="policy" name="Policy" />

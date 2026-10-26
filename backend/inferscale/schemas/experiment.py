@@ -46,9 +46,19 @@ class ExperimentConfig(BaseModel):
     max_replicas: int = Field(default=8, ge=1, description="Maximum replicas")
     replica_startup_delay: float = Field(default=10.0, ge=0.0, description="Startup delay in seconds")
     scaling_cooldown: float = Field(default=30.0, ge=0.0, description="Scaling cooldown in seconds")
-    decision_interval: float = Field(default=5.0, ge=0.0, description="Decision interval in seconds")
+    decision_interval: float = Field(
+        default=5.0, gt=0.0, description="Decision interval in seconds"
+    )
     episode_duration: float = Field(default=3600.0, ge=1.0, description="Episode duration in seconds")
     sla_threshold: float = Field(default=30.0, ge=1.0, description="SLA threshold in seconds")
+    slo_target: float = Field(
+        default=0.99, ge=0.0, le=1.0, allow_inf_nan=False,
+        description="Required fraction of arrivals completed within the SLA",
+    )
+    cost_per_replica_second: float = Field(
+        default=settings.gpu_cost_per_replica_second, ge=0.0, allow_inf_nan=False,
+        description="USD per second in starting, active or draining state",
+    )
     random_seed: int = Field(default=42, description="Random seed")
     replica_capacity: int = Field(default=10, ge=1, description="Replica capacity (concurrent requests)")
     reward_alpha: float = Field(default=0.1, ge=0.0, description="Cost weight")
@@ -100,7 +110,10 @@ class ExperimentResult(BaseModel):
     p50_latency_ms: float = Field(..., ge=0, description="p50 latency in ms")
     p95_latency_ms: float = Field(..., ge=0, description="p95 latency in ms")
     p99_latency_ms: float = Field(..., ge=0, description="p99 latency in ms")
-    sla_violation_rate: float = Field(..., ge=0, le=1, description="SLA violation rate")
+    sla_violation_rate: Optional[float] = Field(
+        ..., ge=0, le=1,
+        description="Violations among resolved requests; unavailable without evidence",
+    )
     goodput: float = Field(..., ge=0, description="Goodput")
     throughput: float = Field(..., ge=0, description="Throughput")
     max_queue_depth: float = Field(..., ge=0, description="Max queue depth")

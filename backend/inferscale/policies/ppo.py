@@ -19,7 +19,7 @@ class PPOPolicy(Policy):
         self.model_path = self.config.get("model_path", None)
         self.model = None
         if self.model_path and os.path.exists(self.model_path):
-            self.model = PPO.load(self.model_path)
+            self.model = PPO.load(self.model_path, device=self.config.get("device", "auto"))
 
     def act(self, observation: Dict[str, Any], engine) -> int:
         """Use trained PPO model to select action."""

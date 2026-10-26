@@ -11,10 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy and install Python dependencies
 COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[dev,test]"
-
-# Copy application code
+COPY README.md .
 COPY backend/ ./backend/
+RUN pip install --no-cache-dir -e ".[dev,test]"
 
 # Create directories for data, models, experiments, reports
 RUN mkdir -p /app/data /app/models /app/experiments /app/reports
@@ -24,7 +23,7 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/api/health', timeout=5)" || exit 1
+    CMD python -c "from urllib.request import urlopen; urlopen('http://localhost:8000/api/health', timeout=5)" || exit 1
 
 # Run the API server
 CMD ["python", "-m", "uvicorn", "inferscale.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

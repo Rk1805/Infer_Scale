@@ -7,31 +7,25 @@ import { Badge } from '../components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Separator } from '../components/ui/separator'
-import { Progress } from '../components/ui/progress'
 import { useToast } from '../components/ui/toast'
 import {
-  Database,
-  Download,
-  Upload,
-  Search,
-  Filter,
-  AlertTriangle,
-  CheckCircle,
+Database,
+Download,
+Upload,
+Search,
+Filter,
+AlertTriangle,
+CheckCircle,
 } from 'lucide-react'
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
+BarChart,
+Bar,
+LineChart,
+Line,
+XAxis,
+YAxis,
+CartesianGrid,
+Tooltip,ResponsiveContainer
 } from 'recharts'
 
 export function DatasetExplorer() {
@@ -144,6 +138,12 @@ export function DatasetExplorer() {
         </CardContent>
       </Card>
 
+      {!selectedDataset && !loading && datasets.length > 0 && <section className="surface-card dataset-introduction">
+        <span className="dataset-intro-icon"><Database size={28} strokeWidth={1.4} /></span>
+        <div><p className="eyebrow mb-2">Know your traffic</p><h2 className="section-heading">Every good experiment starts with the workload.</h2><p className="mt-2 text-xs leading-relaxed text-muted-foreground">Explore arrival patterns, token distributions, and schema details before choosing your scaling policy.</p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => setSelectedDataset(datasets[0].id)}><Search size={13} />Explore {datasets[0].name}</Button></div>
+      </section>}
+
       {/* Dataset Details */}
       {selectedDataset && (
         <Card>
@@ -225,7 +225,7 @@ function DatasetDetails({ stats, onExport }: { stats: DatasetStats; onExport: ()
                   <XAxis dataKey="range" name="Token Range" />
                   <YAxis name="Count" />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="#287d68" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -241,7 +241,7 @@ function DatasetDetails({ stats, onExport }: { stats: DatasetStats; onExport: ()
                   <XAxis dataKey="range" name="Token Range" />
                   <YAxis name="Count" />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="#85a190" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -264,7 +264,7 @@ function DatasetDetails({ stats, onExport }: { stats: DatasetStats; onExport: ()
                   formatter={(value: number) => [value.toFixed(2), 'Rate']}
                   labelFormatter={(v) => new Date(v * 1000).toLocaleTimeString()}
                 />
-                <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="value" stroke="#287d68" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

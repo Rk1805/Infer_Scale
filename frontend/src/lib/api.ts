@@ -24,6 +24,28 @@ class ApiClient {
   }
 
   // Health
+  async createBenchmark(config: BenchmarkRequest): Promise<BenchmarkJob> {
+    return (await this.client.post('/benchmarks', config)).data
+  }
+
+  async listBenchmarks(): Promise<BenchmarkJob[]> {
+    return (await this.client.get('/benchmarks')).data
+  }
+
+  async getBenchmark(id: string): Promise<BenchmarkJob> {
+    return (await this.client.get(`/benchmarks/${id}`)).data
+  }
+
+  async getBenchmarkResults(id: string): Promise<BenchmarkResults> {
+    return (await this.client.get(`/benchmarks/${id}/results`)).data
+  }
+
+  async exportBenchmark(id: string, artifact: string): Promise<Blob> {
+    return (await this.client.get(`/benchmarks/${id}/export`, {
+      params: { artifact }, responseType: 'blob',
+    })).data
+  }
+
   async health(): Promise<{ status: string; timestamp: string }> {
     const res = await this.client.get('/health')
     return res.data
@@ -101,7 +123,11 @@ class ApiClient {
 
   async listModels(): Promise<ModelInfo[]> {
     const res = await this.client.get('/models')
-    return res.data
+    return res.data.map((model: ModelInfo & { config: TrainingConfig | string; metrics: TrainingMetrics | string | null }) => ({
+      ...model,
+      config: typeof model.config === 'string' ? JSON.parse(model.config) : model.config,
+      metrics: typeof model.metrics === 'string' ? JSON.parse(model.metrics) : model.metrics,
+    }))
   }
 
   // Evaluations
@@ -123,6 +149,73 @@ class ApiClient {
 }
 
 export const api = new ApiClient()
+
+export interface BenchmarkRequest {
+  experiment: Partial<ExperimentConfig>
+  policies: string[]
+  workloads: string[]
+  seeds: number[]
+  num_requests: number
+  model_id?: string
+  baseline_policy?: string
+}
+
+export interface BenchmarkJob {
+  id: string
+  config: BenchmarkRequest
+  state: 'queued' | 'running' | 'completed' | 'failed'
+  progress: number
+  error: string | null
+  created_at: string
+}
+
+export interface BenchmarkSummary {
+  workload: string
+  policy: string
+  metric: string
+  n: number
+  mean: number | null
+  std: number | null
+  ci_low: number | null
+  ci_high: number | null
+  failed: number
+  missing: number
+}
+
+export interface BenchmarkResults {
+  id: string
+  successful_runs: number
+  failed_runs: number
+  aggregates: BenchmarkSummary[]
+  cost_slo: CostSloComparison[]
+  result: {
+    warnings: string[]
+    runs: Array<{
+      policy: string; workload: string; seed: number; status: string; error: string | null
+    }>
+  }
+}
+
+export interface CostSloComparison {
+  workload: string
+  policy: string
+  expected_runs: number
+  completed_runs: number
+  failed_runs: number
+  slo_status: 'met' | 'violated' | 'inconclusive' | 'unavailable'
+  slo_met_runs: number
+  slo_violated_runs: number
+  slo_inconclusive_runs: number
+  slo_target: number
+  mean_cost: number | null
+  mean_attainment_lower: number | null
+  mean_attainment_upper: number | null
+  mean_overdue_requests: number | null
+  mean_pending_requests: number | null
+  baseline_policy: string
+  matched_cost_pairs: number
+  mean_cost_savings_percent: number | null
+}
 
 // Types
 export interface Dataset {
@@ -193,6 +286,8 @@ export interface ExperimentConfig {
   decision_interval: number
   episode_duration: number
   sla_threshold: number
+  slo_target?: number
+  cost_per_replica_second?: number
   random_seed: number
   reward_alpha: number
   reward_beta: number
@@ -218,13 +313,32 @@ export interface ExperimentJob {
 }
 
 export interface ExperimentMetrics {
+  accounting_version?: number
+  total_replica_seconds?: number
+  starting_cost?: number
+  active_cost?: number
+  draining_cost?: number
+  queued_requests?: number
+  in_flight_requests?: number
+  overdue_requests?: number
+  pending_requests?: number
+  on_time_completions?: number
+  late_completions?: number
+  slo_attainment_lower_bound?: number | null
+  slo_attainment_upper_bound?: number | null
+  slo_met?: boolean | null
+  slo_target?: number
+  avg_queueing_delay_ms: number
+  avg_service_time_ms: number
+  completions: number
+  arrivals: number
   experiment_id: string
   total_cost: number
   avg_active_replicas: number
   p50_latency_ms: number
   p95_latency_ms: number
   p99_latency_ms: number
-  sla_violation_rate: number
+  sla_violation_rate: number | null
   goodput: number
   throughput: number
   max_queue_depth: number

@@ -70,11 +70,12 @@ class SimulationEvent:
     event_type: EventType
     data: Dict[str, Any] = field(default_factory=dict)
     priority: int = 0
+    sequence: int = 0
 
     def __lt__(self, other: "SimulationEvent") -> bool:
         if self.time != other.time:
             return self.time < other.time
-        return self.priority < other.priority
+        return (self.priority, self.sequence) < (other.priority, other.sequence)
 
 
 class ServiceTimeModel:
@@ -119,6 +120,8 @@ class SimulatorEngine:
         sla_threshold: float = 30.0,
         replica_capacity: int = 10,
         seed: int = 42,
+        cost_per_replica_second: Optional[float] = None,
+        slo_target: float = 0.99,
     ):
         self.requests = sorted(requests, key=lambda r: r.arrival_time_seconds)
         self.initial_replicas = initial_replicas
@@ -131,6 +134,16 @@ class SimulatorEngine:
         self.sla_threshold = sla_threshold
         self.replica_capacity = replica_capacity
         self.seed = seed
+        self.cost_per_replica_second = (
+            settings.gpu_cost_per_replica_second
+            if cost_per_replica_second is None else cost_per_replica_second
+        )
+        if not math.isfinite(self.cost_per_replica_second) or self.cost_per_replica_second < 0:
+            raise ValueError("cost_per_replica_second must be finite and nonnegative")
+        if not math.isfinite(slo_target) or not 0 <= slo_target <= 1:
+            raise ValueError("slo_target must be between zero and one")
+        self.slo_target = slo_target
+        self._queue_seconds = 0.0
 
         # Initialize random state
         self.rng = random.Random(seed)
@@ -160,6 +173,10 @@ class SimulatorEngine:
         self.metrics = {
             "total_replica_seconds": 0.0,
             "total_cost": 0.0,
+            "accounting_version": 2,
+            "starting_replica_seconds": 0.0,
+            "active_replica_seconds": 0.0,
+            "draining_replica_seconds": 0.0,
             "arrivals": 0,
             "completions": 0,
             "sla_violations": 0,
@@ -181,7 +198,7 @@ class SimulatorEngine:
         self._schedule_arrivals()
 
         # Schedule episode end
-        self._schedule_event(self.episode_duration, EventType.EPISODE_END)
+        self._schedule_event(self.episode_duration, EventType.EPISODE_END, priority=100)
 
         # Schedule first decision point
         self._schedule_event(0, EventType.DECISION_POINT)
@@ -200,11 +217,13 @@ class SimulatorEngine:
         replica.ready_time = self.current_time + self.startup_delay
         self.replicas[replica.id] = replica
         self._schedule_event(replica.ready_time, EventType.REPLICA_READY, {"replica_id": replica.id})
-        self.metrics["total_cost"] += self.startup_delay * settings.gpu_cost_per_replica_second
 
     def _schedule_arrivals(self) -> None:
         """Schedule all request arrivals."""
         for req_schema in self.requests:
+            # An episode observes arrivals in [0, horizon), and completions through the horizon.
+            if not 0 <= req_schema.arrival_time_seconds < self.episode_duration:
+                continue
             req = Request(
                 id=req_schema.id,
                 arrival_time=req_schema.arrival_time_seconds,
@@ -223,16 +242,50 @@ class SimulatorEngine:
             event_type=event_type,
             data=data or {},
             priority=priority,
+            sequence=self.next_event_id,
         )
+        self.next_event_id += 1
         heapq.heappush(self.events, event)
+
+    def _advance_time(self, time: float) -> None:
+        """Integrate billable state durations before changing any replica state."""
+        elapsed = time - self.current_time
+        if elapsed < 0:
+            raise ValueError("Simulation time cannot move backwards")
+        for state in (ReplicaState.STARTING, ReplicaState.ACTIVE, ReplicaState.DRAINING):
+            count = sum(replica.state == state for replica in self.replicas.values())
+            self.metrics[f"{state.value}_replica_seconds"] += count * elapsed
+        self.metrics["total_replica_seconds"] = sum(
+            self.metrics[f"{state.value}_replica_seconds"]
+            for state in (ReplicaState.STARTING, ReplicaState.ACTIVE, ReplicaState.DRAINING)
+        )
+        self.metrics["total_cost"] = (
+            self.metrics["total_replica_seconds"] * self.cost_per_replica_second
+        )
+        self._queue_seconds += len(self.waiting_queue) * elapsed
+        self.current_time = time
 
     def step(self) -> Optional[Dict]:
         """Execute one simulation step."""
         if not self.events or self.current_time >= self.episode_duration:
+            # Callers may loop on the queue; discard events that cannot run after the horizon.
+            self.events.clear()
             return None
 
         event = heapq.heappop(self.events)
-        self.current_time = event.time
+        self._advance_time(event.time)
+        result = self._process_event(event)
+        # Finish all events at the horizon, including exact-deadline completions,
+        # before a caller's current_time < horizon loop exits.
+        if self.current_time == self.episode_duration:
+            while self.events and self.events[0].time == self.episode_duration:
+                extra = self._process_event(heapq.heappop(self.events))
+                if extra is not None:
+                    result = extra
+            self.events.clear()
+        return result
+
+    def _process_event(self, event: SimulationEvent) -> Optional[Dict]:
 
         # Process event
         if event.event_type == EventType.ARRIVAL:
@@ -271,6 +324,7 @@ class SimulatorEngine:
         replica = self.replicas.get(replica_id)
         if replica:
             replica.state = ReplicaState.ACTIVE
+            self.pending_scale_up = max(0, self.pending_scale_up - 1)
             self._try_schedule_requests()
 
     def _handle_start_prefill(self, replica_id: int, request_id: str) -> None:
@@ -314,6 +368,9 @@ class SimulatorEngine:
 
             replica.active_requests -= 1
             replica.in_flight.remove(request_id)
+            if replica.state == ReplicaState.DRAINING and replica.active_requests == 0:
+                replica.state = ReplicaState.STOPPED
+                self.pending_scale_down = max(0, self.pending_scale_down - 1)
             replica.total_processed += 1
             replica.total_tokens_processed += request.prompt_tokens + request.output_tokens
             self.completed_requests.append(request)
@@ -347,6 +404,10 @@ class SimulatorEngine:
     def _handle_decision_point(self) -> Dict:
         """Handle a decision point - returns observation for policy."""
         self.decision_points.append(self.current_time)
+        # Direct policy evaluation needs a decision throughout the episode, not only at t=0.
+        next_time = self.current_time + self.decision_interval
+        if self.decision_interval > 0 and next_time < self.episode_duration:
+            self._schedule_event(next_time, EventType.DECISION_POINT)
         obs = self.get_observation()
         return {
             "time": self.current_time,
@@ -382,6 +443,9 @@ class SimulatorEngine:
                 target = min(active_replicas, key=lambda r: r.active_requests)
                 target.state = ReplicaState.DRAINING
                 self.pending_scale_down += 1
+                if target.active_requests == 0:
+                    target.state = ReplicaState.STOPPED
+                    self.pending_scale_down -= 1
                 self.metrics["scaling_events"] += 1
                 self.action_history.append({"time": self.current_time, "action": "scale_down", "replicas": total - 1})
         else:
@@ -455,26 +519,64 @@ class SimulatorEngine:
     def get_metrics(self) -> Dict[str, Any]:
         """Get current simulation metrics."""
         completed = self.completed_requests
-        if not completed:
-            return self.metrics
-
-        latencies = [r.decode_end_time - r.arrival_time for r in completed if r.decode_end_time]
-        queueing_delays = [r.prefill_start_time - r.arrival_time for r in completed if r.prefill_start_time]
-        service_times = [r.decode_end_time - r.prefill_start_time for r in completed if r.decode_end_time and r.prefill_start_time]
+        latencies = sorted(r.decode_end_time - r.arrival_time for r in completed)
+        queueing_delays = [r.prefill_start_time - r.arrival_time for r in completed]
+        service_times = [r.decode_end_time - r.prefill_start_time for r in completed]
+        unfinished = [r for r in self.requests_by_id.values() if r.state != "completed"]
+        overdue = sum(
+            r.arrival_time + self.sla_threshold < self.current_time for r in unfinished
+        )
+        pending = len(unfinished) - overdue
+        late = self.metrics["sla_violations"]
+        on_time = len(completed) - late
+        arrivals = self.metrics["arrivals"]
+        evaluated = len(completed) + overdue
+        lower = on_time / arrivals if arrivals else None
+        upper = (on_time + pending) / arrivals if arrivals else None
+        slo_met = None
+        if arrivals:
+            if lower >= self.slo_target:
+                slo_met = True
+            elif upper < self.slo_target:
+                slo_met = False
+        elapsed = self.current_time
 
         return {
             **self.metrics,
+            "cost_per_replica_second": self.cost_per_replica_second,
+            **{
+                f"{state}_cost": self.metrics[f"{state}_replica_seconds"]
+                * self.cost_per_replica_second
+                for state in ("starting", "active", "draining")
+            },
             "p50_latency_ms": sorted(latencies)[len(latencies)//2] * 1000 if latencies else 0,
             "p95_latency_ms": sorted(latencies)[int(len(latencies)*0.95)] * 1000 if latencies else 0,
             "p99_latency_ms": sorted(latencies)[int(len(latencies)*0.99)] * 1000 if latencies else 0,
             "avg_queueing_delay_ms": sum(queueing_delays) / len(queueing_delays) * 1000 if queueing_delays else 0,
             "avg_service_time_ms": sum(service_times) / len(service_times) * 1000 if service_times else 0,
-            "goodput": len([r for r in completed if not r.sla_violated]) / max(1, self.current_time),
-            "throughput": len(completed) / max(1, self.current_time),
-            "avg_active_replicas": sum(
-                1 for r in self.replicas.values() if r.state == ReplicaState.ACTIVE
-            ) / max(1, len(self.decision_points)) if self.decision_points else 0,
-            "unfinished_requests": len(self.waiting_queue) + sum(r.active_requests for r in self.replicas.values()),
+            "goodput": on_time / elapsed if elapsed else 0.0,
+            "throughput": len(completed) / elapsed if elapsed else 0.0,
+            "avg_active_replicas": (
+                self.metrics["active_replica_seconds"] / elapsed if elapsed else 0.0
+            ),
+            "avg_queue_depth": self._queue_seconds / elapsed if elapsed else 0.0,
+            "unfinished_requests": len(unfinished),
+            "queued_requests": len(self.waiting_queue),
+            "in_flight_requests": len(unfinished) - len(self.waiting_queue),
+            "on_time_completions": on_time,
+            "late_completions": late,
+            "overdue_requests": overdue,
+            "pending_requests": pending,
+            "slo_violations": late + overdue,
+            "slo_evaluated_requests": evaluated,
+            "sla_violation_rate": (late + overdue) / evaluated if evaluated else None,
+            "completed_request_sla_violation_rate": late / len(completed) if completed else None,
+            "completion_rate": len(completed) / arrivals if arrivals else None,
+            "slo_attainment_lower_bound": lower,
+            "slo_attainment_upper_bound": upper,
+            "slo_target": self.slo_target,
+            "slo_met": slo_met,
+            "cost_per_on_time_request": self.metrics["total_cost"] / on_time if on_time else None,
         }
 
     def _update_queue_metrics(self) -> None:
@@ -495,10 +597,16 @@ class SimulatorEngine:
         """Run simulation until a specific time."""
         self.is_running = True
         results = []
-        while self.events and self.current_time < time:
+        target = min(time, self.episode_duration)
+        while (
+            self.events and self.events[0].time <= target
+            and self.current_time < self.episode_duration
+        ):
             result = self.step()
             if result:
                 results.append(result)
+        if target > self.current_time:
+            self._advance_time(target)
         return results
 
     def run(self) -> List[Dict]:
@@ -544,6 +652,8 @@ class SimulatorEngine:
             sla_threshold=self.sla_threshold,
             replica_capacity=self.replica_capacity,
             seed=self.seed,
+            cost_per_replica_second=self.cost_per_replica_second,
+            slo_target=self.slo_target,
         )
 
 
@@ -568,6 +678,8 @@ def run_simulation(
         sla_threshold=cfg.get("sla_threshold", 30.0),
         replica_capacity=cfg.get("replica_capacity", 10),
         seed=cfg.get("random_seed", 42),
+        cost_per_replica_second=cfg.get("cost_per_replica_second"),
+        slo_target=cfg.get("slo_target", 0.99),
     )
 
     policy_obj = get_policy(policy, cfg)

@@ -1,6 +1,7 @@
 """FastAPI application for InferScale."""
 
 from contextlib import asynccontextmanager
+import json
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
@@ -15,6 +16,7 @@ from inferscale.schemas.experiment import ExperimentConfig, ExperimentStatus, Po
 from inferscale.simulator.engine import run_simulation
 from inferscale.data.synth import SYNTHETIC_WORKLOADS
 from inferscale.policies import get_policy
+from inferscale.api.benchmarks import router as benchmark_router
 
 
 @asynccontextmanager
@@ -22,9 +24,13 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     print("Starting InferScale API...")
+    from inferscale.api.benchmarks import service
+    service.db.interrupt_benchmarks()
     yield
     # Shutdown
     print("Shutting down InferScale API...")
+    import asyncio
+    await asyncio.to_thread(service.close)
 
 
 app = FastAPI(
@@ -41,6 +47,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(benchmark_router)
 
 
 # Health endpoint

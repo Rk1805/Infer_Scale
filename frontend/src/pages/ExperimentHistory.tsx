@@ -1,26 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useExperiments } from '../hooks/useData'
-import { api, ExperimentJob, ExperimentMetrics } from '../lib/api'
+import { api, ExperimentJob } from '../lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Select } from '../components/ui/select'
 import { Label } from '../components/ui/label'
+import { Progress } from '../components/ui/progress'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
-import { Separator } from '../components/ui/separator'
 import { useToast } from '../components/ui/toast'
 import {
-  Download,
-  FileText,
-  Search,
-  Filter,
-  RotateCcw,
-  Eye,
-  Trash2,
-  ClipboardList,
+Download,
+FileText,
+Search,RotateCcw,
+Eye,
+Trash2,
+ClipboardList
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { formatPercent } from '../lib/utils'
 
 export function ExperimentHistory() {
   const { experiments, loading, refetch } = useExperiments()
@@ -296,7 +294,13 @@ function generateMarkdownReport(exp: ExperimentJob): string {
   md += `| p50 Latency | ${metrics.p50_latency_ms.toFixed(1)} ms |\n`
   md += `| p95 Latency | ${metrics.p95_latency_ms.toFixed(1)} ms |\n`
   md += `| p99 Latency | ${metrics.p99_latency_ms.toFixed(1)} ms |\n`
-  md += `| SLA Violation Rate | ${(metrics.sla_violation_rate * 100).toFixed(2)}% |\n`
+  md += `| SLO Violation Rate | ${formatPercent(metrics.sla_violation_rate, 2)} |\n`
+  if (metrics.accounting_version === 2) {
+    md += `| Billable replica-seconds | ${metrics.total_replica_seconds} |\n`
+    md += `| SLO attainment bounds | ${formatPercent(metrics.slo_attainment_lower_bound)}–${formatPercent(metrics.slo_attainment_upper_bound)} |\n`
+    md += `| SLO status | ${metrics.slo_met === true ? 'met' : metrics.slo_met === false ? 'violated' : 'inconclusive'} |\n`
+    md += `| Overdue / pending | ${metrics.overdue_requests} / ${metrics.pending_requests} |\n`
+  }
   md += `| Goodput | ${metrics.goodput.toFixed(2)} req/s |\n`
   md += `| Throughput | ${metrics.throughput.toFixed(2)} req/s |\n`
   md += `| Max Queue Depth | ${metrics.max_queue_depth} |\n`

@@ -52,6 +52,8 @@ experiments/*.json
 reports/*.md
 reports/*.html
 reports/*.pdf
+reports/benchmarks/
+results/
 
 # Logs
 *.log

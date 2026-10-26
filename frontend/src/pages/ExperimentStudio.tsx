@@ -6,7 +6,6 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
-import { Separator } from '../components/ui/separator'
 import { useToast } from '../components/ui/toast'
 import { Save, Play, Loader2 } from 'lucide-react'
 
@@ -47,6 +46,8 @@ export function ExperimentStudio() {
     decision_interval: 5,
     episode_duration: 3600,
     sla_threshold: 30,
+    slo_target: 0.99,
+    cost_per_replica_second: 0.01,
     random_seed: 42,
     reward_alpha: 0.1,
     reward_beta: 1.0,
@@ -286,6 +287,19 @@ export function ExperimentStudio() {
                   max="300"
                   step="1"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="slo_target">SLO target (% of arrivals)</Label>
+                <Input id="slo_target" type="number" min={0} max={100} step={0.1}
+                  value={(config.slo_target ?? 0.99) * 100}
+                  onChange={e => handleChange('slo_target', Number(e.target.value) / 100)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cost_per_replica_second">USD per replica-second</Label>
+                <Input id="cost_per_replica_second" type="number" min={0} step="any"
+                  value={config.cost_per_replica_second ?? 0.01}
+                  onChange={e => handleChange('cost_per_replica_second', Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground">Billed while starting, active (including idle), or draining.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="random_seed">Random Seed</Label>

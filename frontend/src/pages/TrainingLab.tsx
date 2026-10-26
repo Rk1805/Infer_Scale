@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTraining, useModels } from '../hooks/useData'
-import { api, TrainingConfig, TrainingJob, ModelInfo } from '../lib/api'
+import { api, TrainingConfig } from '../lib/api'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -9,38 +9,33 @@ import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Progress } from '../components/ui/progress'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Separator } from '../components/ui/separator'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { useToast } from '../components/ui/toast'
 import {
-  Play,
-  Pause,
-  Loader2,
-  Brain,
-  Save,
-  Download,
-  Trash2,
-  CheckCircle,
-  AlertCircle,
-  RotateCcw,
+Play,
+Pause,
+Loader2,
+Brain,CheckCircle,
+AlertCircle,
+RotateCcw
 } from 'lucide-react'
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+LineChart,
+Line,
+XAxis,
+YAxis,
+CartesianGrid,
+Tooltip,
+Legend,
+ResponsiveContainer,
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
 
 export function TrainingLab() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { training, loading: trainingLoading, refetch: refetchTraining } = useTraining(id || null)
+  const { training, refetch: refetchTraining } = useTraining(id || null)
   const { models, loading: modelsLoading, refetch: refetchModels } = useModels()
   const { toast } = useToast()
 
@@ -414,7 +409,7 @@ export function TrainingLab() {
                     type="monotone"
                     dataKey="reward"
                     name="Episode Reward"
-                    stroke="#3b82f6"
+                    stroke="#287d68"
                     strokeWidth={2}
                     dot={false}
                   />
@@ -423,7 +418,7 @@ export function TrainingLab() {
                       type="monotone"
                       dataKey="reward"
                       name="Eval Reward"
-                      stroke="#22c55e"
+                      stroke="#85a190"
                       strokeWidth={2}
                       dot={false}
                       data={evalRewards.map((r, i) => ({ step: i * 10, reward: r }))}
@@ -493,7 +488,7 @@ export function TrainingLab() {
                 {models.map((model) => (
                   <TableRow key={model.id}>
                     <TableCell className="font-mono text-sm">{model.id}</TableCell>
-                    <TableCell>{getStatusBadge(model.state)}</TableCell>
+                    <TableCell><Badge variant="outline">Registered</Badge></TableCell>
                     <TableCell>{model.config.timesteps.toLocaleString()}</TableCell>
                     <TableCell>{model.config.dataset_id}</TableCell>
                     <TableCell>{model.config.workload_type}</TableCell>
