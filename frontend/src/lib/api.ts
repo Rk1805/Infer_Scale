@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios'
+import type { StudyData, StudyProfile, StudyReplay } from './study'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
@@ -24,6 +25,14 @@ class ApiClient {
   }
 
   // Health
+  async getStudy(): Promise<StudyData> {
+    return (await this.client.get('/rl-study')).data
+  }
+
+  async replayStudy(profile: StudyProfile, seed: number): Promise<StudyReplay> {
+    return (await this.client.post('/rl-study/replay', { profile, seed })).data
+  }
+
   async createBenchmark(config: BenchmarkRequest): Promise<BenchmarkJob> {
     return (await this.client.post('/benchmarks', config)).data
   }

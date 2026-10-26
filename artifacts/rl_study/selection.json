@@ -1,0 +1,43 @@
+{
+  "criterion": "Highest mean deterministic validation return; earlier candidate breaks ties",
+  "test_used_for_selection": false,
+  "selected_candidate": "E:\\Infer_Scale\\artifacts\\rl_study_entropy",
+  "candidates": [
+    {
+      "directory": "E:\\Infer_Scale\\artifacts\\rl_study",
+      "archive": "E:\\Infer_Scale\\artifacts\\rl_study\\candidates\\rl_study",
+      "validation_return": -3.2450833333333335,
+      "selected_step": 4096,
+      "entropy_coef": 0.0
+    },
+    {
+      "directory": "E:\\Infer_Scale\\artifacts\\rl_study_entropy",
+      "archive": "E:\\Infer_Scale\\artifacts\\rl_study\\candidates\\rl_study_entropy",
+      "validation_return": -2.838341269841267,
+      "selected_step": 32768,
+      "entropy_coef": 0.02
+    }
+  ],
+  "source_sha256": {
+    "backend\\inferscale\\rl\\env.py": "0c9555ac4a5219011dcb326ccf4d1d0f67ff5f11fc94476db7aa12e3a04d6e4d",
+    "backend\\inferscale\\rl\\features.py": "b4d59630865585a35dd3d42327d9e477d96254f04c32024fda5348c69cd99ab9",
+    "backend\\inferscale\\rl\\reward.py": "318e847b6f5ef4427cf882cafebb41d3aff77caa51a23f3b44c7709f194cd860",
+    "backend\\inferscale\\rl\\__init__.py": "cd7b0c6348128576dedb11821dd6fbd041e4ef0d18b97371a8dd2f44cb1ce747",
+    "backend\\inferscale\\simulator\\engine.py": "2148ece22617350e9c51918811b053d48e08ccf9261983e5bafbbf29f2d23a9b",
+    "backend\\inferscale\\simulator\\__init__.py": "3c747f514ddf52ce1e8aa0e4bd6bb0331a3325987128ff34b33863d970318ea6",
+    "backend\\inferscale\\policies\\base.py": "e8b742b501759d3cf161c0aadc29373071d66f5e40dd3d4d7a82c273a5a8ee22",
+    "backend\\inferscale\\policies\\fixed.py": "fb614936f2272efb07bfc321121c71da39d61b960e9360404a9c2c2ae9948b77",
+    "backend\\inferscale\\policies\\ppo.py": "93f31e3b6ad4e05cd3546b83d64cb219713b8f3a8fc5d4af365c234da4d207db",
+    "backend\\inferscale\\policies\\queue.py": "7f86c82ac19283b615794e4fe2af0b6853dfe50d75df75cbb592103aad7a826d",
+    "backend\\inferscale\\policies\\threshold.py": "7ace76febe1d50a3ca60476d8baa8fc4b54b1bfe04d8b8670ec10db5d98780ae",
+    "backend\\inferscale\\policies\\__init__.py": "bb92a6d253833f2747f9cdd81d797a432301df70a9ddfbd8ccce8f919479f4a7",
+    "backend\\inferscale\\experiments\\benchmark.py": "4ac5828914ae7323320cc0ffff6f8c4ac2d2a675d31431923556c3195d707e3f",
+    "backend\\inferscale\\experiments\\evaluation.py": "62b327ba981e76eaa3a0fe69f44ff5bfaacb092f054b9dc9b28351e047bf5f2b",
+    "backend\\inferscale\\experiments\\persistence.py": "7e7feb01f3ce626ff212f010fa9b5355a18dd45356dbfed178e21fee341db582",
+    "backend\\inferscale\\experiments\\reporting.py": "3d2ba993f8a31764032d8b395e6e0fe2584c66ac3a9f308a8f2fa3e432b6d5a5",
+    "backend\\inferscale\\experiments\\rl_study.py": "62fafd51802a7f8983d4c5d998c8c51710f9d4aceb2e08b8c638c6fa2dc3443f",
+    "backend\\inferscale\\experiments\\runner.py": "b585ac23a1f47a24edf2f3fde00d4ff6c511da10a24b31be6641e0502fad3d56",
+    "backend\\inferscale\\experiments\\statistics.py": "bbf91e852b487698d47598dee96d157efc81bd4fafbeb6598af83afe14c10a6b",
+    "backend\\inferscale\\experiments\\__init__.py": "06bcd8bd0ee82a846dfdfe5236f96a7bc0ecde66ece44d0e793c492ac8122703"
+  }
+}

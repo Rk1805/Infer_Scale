@@ -344,8 +344,7 @@ class SimulatorEngine:
         if request:
             request.state = "decoding"
             request.prefill_end_time = self.current_time
-            decode_time = self.service_model.decode_time(request.output_tokens)
-            self._schedule_event(self.current_time + decode_time, EventType.START_DECODE, {"replica_id": replica_id, "request_id": request_id})
+            self._schedule_event(self.current_time, EventType.START_DECODE, {"replica_id": replica_id, "request_id": request_id})
 
     def _handle_start_decode(self, replica_id: int, request_id: str) -> None:
         """Handle start of decode."""
@@ -435,6 +434,7 @@ class SimulatorEngine:
             self.pending_scale_up += 1
             self.metrics["scaling_events"] += 1
             self.action_history.append({"time": self.current_time, "action": "scale_up", "replicas": total + 1})
+            self.last_scale_time = self.current_time
         elif action == 0 and total > self.min_replicas:
             # Scale down - find a replica to drain
             active_replicas = [r for r in self.replicas.values() if r.state == ReplicaState.ACTIVE]
@@ -448,10 +448,11 @@ class SimulatorEngine:
                     self.pending_scale_down -= 1
                 self.metrics["scaling_events"] += 1
                 self.action_history.append({"time": self.current_time, "action": "scale_down", "replicas": total - 1})
+                self.last_scale_time = self.current_time
+            else:
+                self.action_history.append({"time": self.current_time, "action": "hold", "replicas": total})
         else:
             self.action_history.append({"time": self.current_time, "action": "hold", "replicas": total})
-
-        self.last_scale_time = self.current_time
 
     def _handle_episode_end(self) -> Dict:
         """Handle episode termination."""

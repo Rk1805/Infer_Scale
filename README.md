@@ -8,12 +8,17 @@ verified Azure/BurstGPT training, and Kubernetes HPA validation are not yet comp
 See the [implementation audit against the project description](docs/project_description_audit.md)
 for supported behavior, source evidence, validation limits, and remaining work.
 
+A trained synthetic PPO checkpoint, 60 held-out policy comparisons, and the
+two-page assignment report are now included. See [the reproducible study](docs/rl_assignment_study.md)
+and [trained-agent artifacts](artifacts/rl_study/README.md) for measured results
+and their limits; PPO improves deadline reliability here at higher resource cost.
+
 InferScale investigates whether reinforcement learning can reduce the compute cost of LLM inference serving while maintaining response-time service-level objectives (SLOs). The system compares four autoscaling policies:
 
-1. **Fixed Capacity** - Always maintains a constant number of replicas
+1. **Fixed Capacity** - Moves toward a configured replica target under scaling constraints
 2. **Threshold Autoscaling** - Scales based on utilization/queue pressure thresholds
 3. **Queue-Based Autoscaling** - Reacts to estimated waiting work per replica
-4. **PPO (RL)** - Learns optimal scaling policy via Proximal Policy Optimization
+4. **PPO (RL)** - Trains a scaling policy via Proximal Policy Optimization
 
 ## Architecture
 
@@ -56,24 +61,30 @@ InferScale/
 
 ```bash
 # Clone and enter directory
-cd InferScale
+git clone https://github.com/Rk1805/Infer_Scale.git
+cd Infer_Scale
 
-# Install Python dependencies
-make install
+# Create a Python environment
+python -m venv .venv
+```
 
-# Install frontend dependencies
-make frontend-install
+Activate it with `.venv\Scripts\Activate.ps1` in PowerShell, or
+`source .venv/bin/activate` on Linux/macOS. Then run:
 
-# Generate synthetic data
-make generate-data
+```bash
+python -m pip install -e ".[dev,test]"
+npm --prefix frontend install
+
+# Optional: generate a synthetic trace
+python -m inferscale.cli generate-data --output data/synthetic.csv
 ```
 
 ### Development
 
 ```bash
 # Start both API and frontend (two terminals)
-make dev-api      # Terminal 1: API on http://localhost:8000
-make dev-frontend # Terminal 2: Frontend on http://localhost:5173
+python -m uvicorn inferscale.api.main:app --host 127.0.0.1 --port 8000  # Terminal 1
+npm --prefix frontend run dev                                      # Terminal 2
 
 # Or use Docker
 make docker-up
@@ -82,18 +93,101 @@ make docker-up
 ### Training & Evaluation
 
 ```bash
-# Short PPO training smoke test (5k timesteps)
-make train-smoke
+# Evaluate the bundled assignment checkpoint on reserved synthetic traces
+python -m inferscale.experiments.rl_study evaluate
 
-# Full training (200k timesteps)
-cd backend && python -m inferscale.cli train --timesteps 200000
+# Retrain without overwriting the bundled evidence
+python -m inferscale.experiments.rl_study train --directory artifacts/reproduction
+python -m inferscale.experiments.rl_study evaluate --directory artifacts/reproduction
 
-# Evaluate trained model
-make evaluate
+# Original CLI training (a separate synthetic-workload setup)
+python -m inferscale.cli train --timesteps 200000
 
-# Run policy comparison benchmark
-make benchmark
+# Reward-only evaluation of that original CLI model
+python -m inferscale.cli evaluate --model-path models/ppo_full.zip --episodes 10
+
+# Run the original policy comparison benchmark
+python -m inferscale.cli benchmark --policies fixed threshold queue
 ```
+
+## Assignment Agent and Reproducible Study
+
+### Show it on the dashboard
+
+With API and frontend running, open **RL Study** in the sidebar or
+<http://127.0.0.1:5173/rl-study>. This page reads the actual saved study artifacts:
+
+1. Show the verified checkpoint, training/validation curves, and held-out totals.
+2. Switch between bursty, steady, and shifted traffic to compare cost, on-time
+   attainment, and p95 latency with 95% run-level intervals.
+3. Choose a reserved request seed and click **Run PPO replay**. The API loads the
+   trained checkpoint and runs fresh inference alongside fixed capacity on the
+   exact same trace, then displays whether the metrics match the saved study.
+4. Play, pause, or scrub through decisions to explain active/starting replicas,
+   queue length, and requested actions. Playback reveals completed simulation
+   records; it is not real-time GPU telemetry.
+5. Inspect individual runs, split/configuration details, or download the report,
+   checkpoint, configuration, and raw results.
+
+Replay is a bounded 180-second CPU simulation, not retraining. Corrupt/missing
+checkpoints and modified traces are rejected; inference does not substitute a
+baseline. The older Training Lab progress flow is explicitly labelled as a
+placeholder and links to this real study.
+
+### Train and reproduce
+
+The assignment study uses the existing simulator, policies, and interval reward
+with a separate seeded protocol in
+[`rl_study.py`](backend/inferscale/experiments/rl_study.py).
+It trains PPO for 32,768 steps on independently generated synthetic traces,
+selects a **trained** checkpoint by validation return, and evaluates that frozen
+checkpoint on reserved test seeds. Training uses bursty and steady profiles;
+the shifted profile is reserved for testing. Arrivals, token counts, and phase
+rates vary by trace seed. These are synthetic CPU simulations, not Azure/BurstGPT
+or measured GPU results.
+
+Artifacts are written under [`artifacts/rl_study/`](artifacts/rl_study/):
+
+- `ppo_autoscaler.zip`: selected trained agent, including fixed input scaling.
+- Retraining also generates `ppo_final.zip`; the release versions the selected
+  `ppo_autoscaler.zip` rather than duplicate checkpoints.
+- `training_manifest.json`: configuration, versions, seed partitions, selected
+  step, checkpoint hash, and code provenance.
+- `training.csv` and `validation.csv`: measured learning/selection histories.
+- `test_evaluation.json` and `test_runs.csv`: all policy results on shared test traces.
+- `test_traces/` and representative timelines: exact requests and scaling behaviour.
+
+Install the source dependencies before loading the trusted checkpoint: its
+feature extractor is `inferscale.rl.features.ScaledObservations`. No external
+normalisation file is needed. For example:
+
+```python
+from stable_baselines3 import PPO
+from inferscale.experiments.rl_study import CONFIG, REWARD, workload
+from inferscale.rl.env import InferScaleEnv
+
+model = PPO.load("artifacts/rl_study/ppo_autoscaler.zip", device="cpu")
+env = InferScaleEnv(workload("bursty", 1001), config=CONFIG, reward_config=REWARD)
+observation, _ = env.reset()
+action, _ = model.predict(observation, deterministic=True)
+```
+
+To preserve existing evidence when retraining, choose a fresh directory:
+
+```bash
+python -m inferscale.experiments.rl_study train --directory artifacts/reproduction
+python -m inferscale.experiments.rl_study evaluate --directory artifacts/reproduction
+```
+
+The report chart is regenerated with
+`python deliverables/InferScale_Report/generate_assignment_plot.py`.
+The two-page PDF and LaTeX source are in `deliverables/InferScale_Report/`.
+One training seed is used; the test seeds measure workload variation and do not
+establish robustness across independently trained agents.
+The released study also compares entropy settings 0 and 0.02 on validation;
+`selection.json` preserves that choice and the candidate evidence. See
+[the complete study protocol](docs/rl_assignment_study.md) for both-candidate
+reproduction commands and simulator corrections.
 
 ## Advanced Benchmarking Contribution
 
@@ -144,7 +238,7 @@ The discrete-event simulator models:
 ## RL Environment
 
 Gymnasium-compatible environment with:
-- **Observation**: 12 normalized features (queue, arrival rate, replicas, latency, SLA rate, cooldown, etc.)
+- **Observation**: 12 raw features (queue, arrival rate, replicas, latency, SLA rate, cooldown, etc.). The assignment checkpoint stores fixed input scaling inside its policy.
 - **Action Space**: Discrete(3) - Scale Down / Hold / Scale Up
 - **Reward**: `r = -(α·C + β·V + γ·Q + δ·S)` where:
   - C = normalized compute cost

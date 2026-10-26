@@ -5,6 +5,7 @@ import { ExperimentStudio } from './pages/ExperimentStudio'
 import { Simulation } from './pages/Simulation'
 import { PolicyComparison } from './pages/PolicyComparison'
 import { TrainingLab } from './pages/TrainingLab'
+import { RLStudy } from './pages/RLStudy'
 import { DatasetExplorer } from './pages/DatasetExplorer'
 import { ExperimentHistory } from './pages/ExperimentHistory'
 
@@ -17,6 +18,7 @@ function App() {
         <Route path="/simulation/:id?" element={<Simulation />} />
         <Route path="/policy-comparison" element={<PolicyComparison />} />
         <Route path="/training-lab" element={<TrainingLab />} />
+        <Route path="/rl-study" element={<RLStudy />} />
         <Route path="/dataset-explorer" element={<DatasetExplorer />} />
         <Route path="/experiment-history" element={<ExperimentHistory />} />
       </Route>

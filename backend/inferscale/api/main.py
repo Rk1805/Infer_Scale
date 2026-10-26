@@ -17,6 +17,7 @@ from inferscale.simulator.engine import run_simulation
 from inferscale.data.synth import SYNTHETIC_WORKLOADS
 from inferscale.policies import get_policy
 from inferscale.api.benchmarks import router as benchmark_router
+from inferscale.api.rl_study import router as rl_study_router
 
 
 @asynccontextmanager
@@ -49,6 +50,7 @@ app.add_middleware(
 )
 
 app.include_router(benchmark_router)
+app.include_router(rl_study_router)
 
 
 # Health endpoint

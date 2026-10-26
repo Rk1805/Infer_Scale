@@ -1,0 +1,12 @@
+{
+  "test_runs": 60,
+  "workload_trace_pairs": 15,
+  "python_tests_passed": 161,
+  "selected_steps": 32768,
+  "optimizer_updates": 630,
+  "parameter_l1_change_from_initial": 1071.1807981207967,
+  "fresh_process_replay": "Exact metric match for bursty seed 1001, fixed and PPO",
+  "source_hashes_verified": true,
+  "no_pending_test_requests": true,
+  "checkpoint_sha256": "5ba0eb959a62fb9466a79ed837c1172239b09bdfcef1b090aa67315c59f4378b"
+}

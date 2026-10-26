@@ -1,0 +1,45 @@
+{
+  "python_tests_passed": 171,
+  "frontend_build": "passed",
+  "frontend_lint": "passed",
+  "browser_checks": [
+    {
+      "loaded": {
+        "title": "RL Study",
+        "runs": true,
+        "steps": true,
+        "charts": 4,
+        "width": 1440,
+        "contentWidth": 1425
+      }
+    },
+    {
+      "profileSwitch": true
+    },
+    {
+      "replay": true
+    },
+    {
+      "playbackScrub": true
+    },
+    {
+      "restartAfterPlaybackEnd": true
+    },
+    {
+      "darkTheme": true
+    },
+    {
+      "mobile": {
+        "viewport": 390,
+        "content": 390
+      }
+    },
+    {
+      "navEntry": true
+    }
+  ],
+  "runtime_exceptions": [],
+  "route": "/rl-study",
+  "replay": "Fresh PPO/fixed inference matched saved test metrics",
+  "report_pages": 2
+}

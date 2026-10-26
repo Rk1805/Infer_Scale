@@ -2,6 +2,13 @@
 
 Audit date: 2026-10-27.
 
+Update: the later [assignment study](rl_assignment_study.md) adds a genuine
+synthetic PPO checkpoint, seeded training/validation selection, and 60 held-out
+comparisons with raw traces and results. It also corrects cooldown handling and
+double-counted decode time. This extends the original audited baseline; the
+production-trace, physical GPU, batch-action, and Kubernetes limitations below
+still apply. Current software verification records 161 passing Python tests.
+
 ## Description being assessed
 
 > InferScale: Autoscaling LLM inference servers with RL. A PPO agent observes request

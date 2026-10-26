@@ -10,6 +10,7 @@ const navigation = [
   { name: 'Experiment Studio', href: '/experiment-studio', icon: FlaskConical, group: 'Workspace' },
   { name: 'Simulation', href: '/simulation', icon: Activity, group: 'Workspace' },
   { name: 'Policy Comparison', href: '/policy-comparison', icon: GitCompare, group: 'Workspace' },
+  { name: 'RL Study', href: '/rl-study', icon: Brain, group: 'Workspace' },
   { name: 'Training Lab', href: '/training-lab', icon: Brain, group: 'Resources' },
   { name: 'Dataset Explorer', href: '/dataset-explorer', icon: Database, group: 'Resources' },
   { name: 'History & Reports', href: '/experiment-history', icon: History, group: 'Resources' },

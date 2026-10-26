@@ -57,6 +57,9 @@ export function Overview() {
       <Button onClick={() => navigate('/experiment-studio')}><Plus size={15} /> New experiment</Button>
     </div>
     {(experimentsError || benchmarksError || resultsError) && <div role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive">{experimentsError || benchmarksError || resultsError}</div>}
+    <Link to="/rl-study" className="surface-card flex flex-wrap items-center justify-between gap-3 p-5 hover:border-primary/40">
+      <div className="flex items-center gap-3"><Brain size={22} className="text-primary" /><div><p className="font-semibold">Explore the trained PPO agent</p><p className="text-sm text-muted-foreground">Learning curves, held-out comparisons, and a fresh checkpoint replay.</p></div></div><span className="text-link">Open RL Study <ArrowRight size={16} /></span>
+    </Link>
     <div className="overview-stats">
       {stats.map(stat => <div className="surface-card stat-card" key={stat.label}>
         <div className="stat-topline"><span>{stat.label}</span><span className={cn('stat-icon', `stat-icon-${stat.color}`)}><stat.icon size={16} strokeWidth={1.7} /></span></div>

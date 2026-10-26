@@ -1,0 +1,547 @@
+{
+  "training_steps": 32768,
+  "selected_step": 32768,
+  "checkpoint_sha256": "5ba0eb959a62fb9466a79ed837c1172239b09bdfcef1b090aa67315c59f4378b",
+  "rows": [
+    {
+      "profile": "bursty",
+      "policy": "fixed",
+      "total_cost": {
+        "mean": 1.775,
+        "ci95_half": 3.082473282398405e-16,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 4185.293807317799,
+        "ci95_half": 3327.8654630765614,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.773010349735384,
+        "ci95_half": 0.2365897284199974,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.773010349735384,
+        "ci95_half": 0.2365897284199974,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 2.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_met_runs": 2,
+      "paired_cost_savings_percent": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      }
+    },
+    {
+      "profile": "bursty",
+      "policy": "threshold",
+      "total_cost": {
+        "mean": 1.675,
+        "ci95_half": 0.1793307376452623,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 3874.363184559387,
+        "ci95_half": 708.1163981440022,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.7505722732971123,
+        "ci95_half": 0.07642715881450203,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.7505722732971123,
+        "ci95_half": 0.07642715881450203,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 3.6,
+        "ci95_half": 0.6800873806582556,
+        "count": 5
+      },
+      "slo_met_runs": 0,
+      "paired_cost_savings_percent": {
+        "mean": 5.633802816901422,
+        "ci95_half": 10.10314014902886,
+        "count": 5
+      }
+    },
+    {
+      "profile": "bursty",
+      "policy": "queue",
+      "total_cost": {
+        "mean": 1.4750001111271112,
+        "ci95_half": 0.23125449134120898,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 10631.082607579008,
+        "ci95_half": 4485.667531071954,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.5023924917727206,
+        "ci95_half": 0.24574068024211995,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.5023924917727206,
+        "ci95_half": 0.24574068024211995,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 16.0,
+        "ci95_half": 44.423121683164695,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 8.4,
+        "ci95_half": 0.6800873806582556,
+        "count": 5
+      },
+      "slo_met_runs": 0,
+      "paired_cost_savings_percent": {
+        "mean": 16.901402190021916,
+        "ci95_half": 13.028422047392057,
+        "count": 5
+      }
+    },
+    {
+      "profile": "bursty",
+      "policy": "ppo",
+      "total_cost": {
+        "mean": 2.814999999999997,
+        "ci95_half": 0.020236647308858845,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 690.0000000000006,
+        "ci95_half": 6.15219138542867,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 1.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 1.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 5.8,
+        "ci95_half": 0.5552890210395586,
+        "count": 5
+      },
+      "slo_met_runs": 5,
+      "paired_cost_savings_percent": {
+        "mean": -58.59154929577446,
+        "ci95_half": 1.1400928061328932,
+        "count": 5
+      }
+    },
+    {
+      "profile": "steady",
+      "policy": "fixed",
+      "total_cost": {
+        "mean": 1.775,
+        "ci95_half": 3.082473282398405e-16,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 694.6999999999974,
+        "ci95_half": 9.521223329218989,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 1.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 1.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 2.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_met_runs": 5,
+      "paired_cost_savings_percent": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      }
+    },
+    {
+      "profile": "steady",
+      "policy": "threshold",
+      "total_cost": {
+        "mean": 1.2150000000000019,
+        "ci95_half": 0.1599470963548563,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 1203.7603325982957,
+        "ci95_half": 512.385714844077,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.9880812359050376,
+        "ci95_half": 0.024249956379132336,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.9880812359050376,
+        "ci95_half": 0.024249956379132336,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 1.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_met_runs": 5,
+      "paired_cost_savings_percent": {
+        "mean": 31.54929577464779,
+        "ci95_half": 9.011104019991903,
+        "count": 5
+      }
+    },
+    {
+      "profile": "steady",
+      "policy": "queue",
+      "total_cost": {
+        "mean": 1.2335138928446931,
+        "ci95_half": 0.16654776847094163,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 3183.5602009020563,
+        "ci95_half": 3267.5103999030657,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.9221122456425392,
+        "ci95_half": 0.10022779612202636,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.9221122456425392,
+        "ci95_half": 0.10022779612202636,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 8.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_met_runs": 3,
+      "paired_cost_savings_percent": {
+        "mean": 30.50625955804545,
+        "ci95_half": 9.382972871602345,
+        "count": 5
+      }
+    },
+    {
+      "profile": "steady",
+      "policy": "ppo",
+      "total_cost": {
+        "mean": 2.835000000000006,
+        "ci95_half": 0.012985632921043065,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 689.8017679167538,
+        "ci95_half": 10.10253201620386,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 1.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 1.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 5.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_met_runs": 5,
+      "paired_cost_savings_percent": {
+        "mean": -59.71830985915526,
+        "ci95_half": 0.7315849532981994,
+        "count": 5
+      }
+    },
+    {
+      "profile": "shifted",
+      "policy": "fixed",
+      "total_cost": {
+        "mean": 1.775,
+        "ci95_half": 3.082473282398405e-16,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 7062.09688188421,
+        "ci95_half": 6027.19357802018,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.6904628771248454,
+        "ci95_half": 0.2551252830471122,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.6904628771248454,
+        "ci95_half": 0.2551252830471122,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 2.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "slo_met_runs": 1,
+      "paired_cost_savings_percent": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      }
+    },
+    {
+      "profile": "shifted",
+      "policy": "threshold",
+      "total_cost": {
+        "mean": 2.1850000000000014,
+        "ci95_half": 0.24104756780489803,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 5543.998320268506,
+        "ci95_half": 1897.1199236836642,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.6692282926016532,
+        "ci95_half": 0.06050667129990158,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.6692282926016532,
+        "ci95_half": 0.06050667129990158,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 4.0,
+        "ci95_half": 1.5207216137916353,
+        "count": 5
+      },
+      "slo_met_runs": 0,
+      "paired_cost_savings_percent": {
+        "mean": -23.09859154929584,
+        "ci95_half": 13.580144665064678,
+        "count": 5
+      }
+    },
+    {
+      "profile": "shifted",
+      "policy": "queue",
+      "total_cost": {
+        "mean": 2.1074999999999995,
+        "ci95_half": 0.14334700305461787,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 5543.998320268506,
+        "ci95_half": 1897.1199236836642,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.5346872496992272,
+        "ci95_half": 0.23429721450836474,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.5346872496992272,
+        "ci95_half": 0.23429721450836474,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 8.4,
+        "ci95_half": 0.6800873806582557,
+        "count": 5
+      },
+      "slo_met_runs": 0,
+      "paired_cost_savings_percent": {
+        "mean": -18.732394366197134,
+        "ci95_half": 8.07588749603481,
+        "count": 5
+      }
+    },
+    {
+      "profile": "shifted",
+      "policy": "ppo",
+      "total_cost": {
+        "mean": 2.9800000000000013,
+        "ci95_half": 0.06455608036904106,
+        "count": 5
+      },
+      "p95_latency_ms": {
+        "mean": 1046.9169587949484,
+        "ci95_half": 555.6361344588322,
+        "count": 5
+      },
+      "slo_attainment_lower_bound": {
+        "mean": 0.9980791240360094,
+        "ci95_half": 0.003267965078484832,
+        "count": 5
+      },
+      "slo_attainment_upper_bound": {
+        "mean": 0.9980791240360094,
+        "ci95_half": 0.003267965078484832,
+        "count": 5
+      },
+      "overdue_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "pending_requests": {
+        "mean": 0.0,
+        "ci95_half": 0.0,
+        "count": 5
+      },
+      "scaling_events": {
+        "mean": 6.6,
+        "ci95_half": 1.1105780420791171,
+        "count": 5
+      },
+      "slo_met_runs": 5,
+      "paired_cost_savings_percent": {
+        "mean": -67.88732394366204,
+        "ci95_half": 3.6369622743121788,
+        "count": 5
+      }
+    }
+  ]
+}

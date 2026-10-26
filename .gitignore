@@ -64,3 +64,10 @@ logs/
 
 # TypeScript
 *.tsbuildinfo
+
+# Local workspace copies and generated submission bundles
+/Infer_Scale/
+/__MACOSX/
+/deliverables/*.zip
+/artifacts/rl_study_entropy/
+/artifacts/repro*/

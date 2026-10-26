@@ -146,6 +146,10 @@ export function TrainingLab() {
       </div>
 
       {/* Training Configuration */}
+      <div className="surface-card flex flex-wrap items-center justify-between gap-3 p-5">
+        <div><p className="font-semibold">Looking for the trained agent and actual learning curves?</p><p className="text-sm text-muted-foreground">Open RL Study for the saved PPO checkpoint, held-out results, and real inference replay. The legacy training flow below uses simulated progress.</p></div>
+        <Button variant="outline" onClick={() => navigate('/rl-study')}>Open RL Study</Button>
+      </div>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>PPO Training Configuration</CardTitle>

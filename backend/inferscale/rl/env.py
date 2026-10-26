@@ -51,13 +51,13 @@ class InferScaleEnv(gym.Env):
         # Define action and observation space
         self.action_space = spaces.Discrete(3)  # 0: scale down, 1: hold, 2: scale up
 
-        # Observation space: normalized values in [0, 1] or [-inf, inf]
+        # Raw observations; queue sizes, work and latency have no finite upper bound.
         # 12 features: queue_length, estimated_work, arrival_rate, avg_prompt_tokens,
         # avg_output_tokens, active_replicas, total_replicas, utilization,
         # p95_latency, sla_violation_rate, cooldown_remaining, starting_replicas
         self.observation_space = spaces.Box(
             low=np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.float32),
-            high=np.array([100, 10000, 100, 1000, 1000, 100, 100, 1, 100, 1, 100, 100], dtype=np.float32),
+            high=np.array([np.inf] * 7 + [1, np.inf, 1, np.inf, np.inf], dtype=np.float32),
             dtype=np.float32,
         )
 
