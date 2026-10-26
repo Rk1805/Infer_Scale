@@ -2,6 +2,12 @@
 
 **Autonomous LLM Inference Autoscaling with Reinforcement Learning**
 
+**Current scope:** a CPU-based simulation and research dashboard. PPO training is
+available through the CLI; live GPU utilisation, inference batch-size actions,
+verified Azure/BurstGPT training, and Kubernetes HPA validation are not yet complete.
+See the [implementation audit against the project description](docs/project_description_audit.md)
+for supported behavior, source evidence, validation limits, and remaining work.
+
 InferScale investigates whether reinforcement learning can reduce the compute cost of LLM inference serving while maintaining response-time service-level objectives (SLOs). The system compares four autoscaling policies:
 
 1. **Fixed Capacity** - Always maintains a constant number of replicas
