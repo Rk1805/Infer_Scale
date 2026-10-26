@@ -7,6 +7,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from inferscale.experiments.evaluation import cost_slo_comparisons
 from inferscale.experiments.statistics import aggregate_results, paired_comparisons
 from inferscale.schemas.benchmark import METRICS, BenchmarkResult
 
@@ -100,6 +101,9 @@ def markdown_report(result: BenchmarkResult, benchmark_id: str) -> str:
         f"- Workloads: {', '.join(result.config.workloads)}",
         f"- Seeds: {', '.join(map(str, result.config.seeds))}",
         f"- Duration: {result.config.experiment.episode_duration:g} simulation seconds",
+        f"- Response deadline: {result.config.experiment.sla_threshold:g} seconds",
+        f"- SLO target: {result.config.experiment.slo_target:.2%} of arrivals",
+        f"- USD per billable replica-second: {result.config.experiment.cost_per_replica_second:g}",
         f"- Successful runs: {successful}; failed runs: {len(result.runs) - successful}",
         f"- Revision: {result.provenance.get('revision') or 'unavailable'}",
         f"- Working tree dirty: {result.provenance.get('working_tree_dirty')}",
@@ -152,6 +156,33 @@ def markdown_report(result: BenchmarkResult, benchmark_id: str) -> str:
         )
     lines += [
         "",
+        "## Cost and SLO evaluation",
+        "",
+        "Accounting v2 bills starting, active (including idle), and draining replica time. "
+        "Legacy startup-only runs are excluded from this section. "
+        "SLO status uses all arrivals: met requires the lower attainment bound to reach "
+        "the target in every configured seed; violated means at least one run's upper "
+        "bound is below target. Unfinished requests with unexpired deadlines are pending.",
+        "",
+        f"Baseline: {result.config.baseline_policy}. "
+        "Savings use matched workload/seed/trace/settings "
+        "pairs with nonzero baseline cost. Positive savings alone do not establish SLO compliance.",
+        "",
+        "| Workload | Policy | Mean cost USD | SLO status | Met / violated / inconclusive runs | "
+        "Mean attainment bounds | Mean overdue / pending | Matched pairs | Mean savings % |",
+        "|---|---|---:|---|---|---|---|---:|---:|",
+    ]
+    for row in cost_slo_comparisons(result):
+        lines.append(
+            f"| {row['workload']} | {row['policy']} | {cell(row['mean_cost'])} | "
+            f"{row['slo_status']} | {row['slo_met_runs']} / {row['slo_violated_runs']} / "
+            f"{row['slo_inconclusive_runs']} | "
+            f"[{cell(row['mean_attainment_lower'])}, {cell(row['mean_attainment_upper'])}] | "
+            f"{cell(row['mean_overdue_requests'])} / {cell(row['mean_pending_requests'])} | "
+            f"{row['matched_cost_pairs']} | {cell(row['mean_cost_savings_percent'])} |"
+        )
+    lines += [
+        "",
         "## Methodology and limitations",
         "",
         "95% confidence intervals use Student's t with n-1 degrees of freedom and sample "
@@ -181,12 +212,13 @@ def write_reports(result: BenchmarkResult, reports_root: str | Path, benchmark_i
         raise ValueError("Report directory escapes the configured root")
     destination.mkdir(parents=True, exist_ok=False)
     manifest = dict(
-        schema_version=1,
+        schema_version=2,
         benchmark_id=benchmark_id,
         generated_at=datetime.now(timezone.utc).isoformat(),
         result=result.model_dump(mode="json"),
         aggregates=aggregate_results(result),
         paired=paired_comparisons(result),
+        cost_slo=cost_slo_comparisons(result),
     )
     contents = {
         "runs.csv": run_csv(result),

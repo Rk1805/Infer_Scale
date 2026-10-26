@@ -104,7 +104,9 @@ python -m inferscale.cli benchmark --policies fixed threshold queue --seeds 11 2
 See [Advanced Benchmarking: methodology and assessment guide](docs/advanced_benchmarking.md)
 for architecture, API endpoints, tests, report exports, and interpretation. Results
 are analytical simulation estimates; the inherited cost metric accounts for startup
-charges only, not total GPU infrastructure running cost.
+charges only in legacy results. New runs use runtime accounting v2; see
+[cost accounting and SLO evaluation](docs/cost_and_slo.md) for billing rules,
+deadline handling, matched savings, and dashboard usage.
 
 ## Dashboard Pages
 

@@ -3,6 +3,7 @@
 import uuid
 import threading
 import time
+import random
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
@@ -102,6 +103,7 @@ class ExperimentRunner:
         """Execute the experiment job."""
         try:
             config = job.config
+            rng = random.Random(config.random_seed)
 
             # Load requests
             if config.dataset_id == "synthetic":
@@ -111,15 +113,20 @@ class ExperimentRunner:
                     # Combine multiple types
                     requests = []
                     for wt in ["steady", "periodic", "flash_crowd"]:
-                        requests.extend(SYNTHETIC_WORKLOADS[wt](num_requests=1000))
+                        requests.extend(SYNTHETIC_WORKLOADS[wt](
+                            num_requests=1000, rng=rng, start_time_seconds=0.0))
                 else:
-                    requests = gen_func()
+                    requests = gen_func(rng=rng, start_time_seconds=0.0)
             else:
                 # Load from dataset
                 requests = load_requests(config.dataset_id)
+                if requests:
+                    origin = min(r.arrival_time_seconds for r in requests)
+                    requests = [r.model_copy(update={
+                        "arrival_time_seconds": r.arrival_time_seconds - origin}) for r in requests]
 
             # Apply trace window
-            if config.trace_window_minutes > 0:
+            if config.trace_window_minutes > 0 and requests:
                 start_time = min(r.arrival_time_seconds for r in requests)
                 end_time = start_time + config.trace_window_minutes * 60
                 requests = [r for r in requests if r.arrival_time_seconds <= end_time]
@@ -140,6 +147,8 @@ class ExperimentRunner:
                 sla_threshold=config.sla_threshold,
                 replica_capacity=config.replica_capacity,
                 seed=config.random_seed,
+                cost_per_replica_second=config.cost_per_replica_second,
+                slo_target=config.slo_target,
             )
 
             # Run simulation

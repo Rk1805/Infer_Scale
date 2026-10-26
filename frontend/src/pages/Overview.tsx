@@ -14,6 +14,7 @@ FlaskConical,
 GitCompare,TrendingUp,Database
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { formatPercent } from '../lib/utils'
 
 export function Overview() {
   const { health, loading: healthLoading } = useHealth()
@@ -216,7 +217,7 @@ export function Overview() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">SLA Violations</span>
-                      <div className="font-medium">{(latestExperiment.results.sla_violation_rate * 100).toFixed(1)}%</div>
+                      <div className="font-medium">{formatPercent(latestExperiment.results.sla_violation_rate)}</div>
                     </div>
                   </div>
                 )}

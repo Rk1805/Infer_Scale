@@ -1,6 +1,8 @@
 # Advanced Benchmarking, Statistical Evaluation & Reporting
 
-This contribution adds a reproducible research evaluation layer to InferScale. The
+This contribution adds a reproducible research evaluation layer to InferScale. It now
+includes [runtime cost accounting and arrival-based SLO evaluation](cost_and_slo.md).
+The
 original CLI compared each policy once per workload; the dashboard launched separate
 experiments. Single-experiment CSV/Markdown exports already existed. Neither workflow
 provided independent workload seeds, confidence intervals, matched comparisons, or
@@ -129,12 +131,15 @@ is asserted. Failed-run selection can bias the remaining successful sample.
 | `completed_request_sla_violation_rate` | Recorded violations / completions; unavailable with no completions. |
 | `throughput`, `goodput` | Completions, or SLA-compliant completions, divided by configured episode seconds. Zero with no completions. |
 | `unfinished_requests` | Recorded arrivals minus completions at the horizon. Consider alongside completion-only latency/SLA metrics. |
-| `total_cost` | Unchanged legacy simulator accounting: startup charges only. It is not total infrastructure running cost. |
+| `total_cost` | Accounting v2: billable starting + active + draining replica-seconds times the configured rate. Includes idle active time. This is a simulation estimate. |
+| `sla_violation_rate` | Late completions plus overdue unfinished requests, divided by completed plus overdue requests. Unavailable with no resolved requests. |
+| `slo_attainment_lower_bound`, `slo_attainment_upper_bound` | On-time completions / arrivals, and (on-time + pending) / arrivals. Unavailable with no arrivals. These are censoring bounds, not confidence intervals. |
 | `max_queue_depth`, `scaling_events` | Existing recorded counters. |
 
-Legacy `avg_active_replicas` is not a time average, and observation `utilization`
-describes active/max replicas rather than busy-slot occupancy; they are excluded.
-No corrected metric is silently substituted into existing experiment endpoints.
+`avg_active_replicas` is now the integral of active replica count divided by elapsed
+time. Observation `utilization` still describes active/max replicas rather than
+busy-slot occupancy. New results carry `accounting_version=2`; existing stored results
+are preserved and must be rerun for cost/SLO comparisons.
 An empty workload has zero arrivals/throughput and unavailable latency/SLA values.
 
 ## Reports and reproducibility

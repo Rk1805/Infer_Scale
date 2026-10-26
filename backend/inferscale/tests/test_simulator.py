@@ -151,8 +151,12 @@ class TestSimulatorEngine:
         engine.step()
         
         active = [r for r in engine.replicas.values() if r.state == ReplicaState.ACTIVE]
-        draining = [r for r in engine.replicas.values() if r.state == ReplicaState.DRAINING]
-        assert len(draining) == 1
+        retired = [r for r in engine.replicas.values()
+                   if r.state in (ReplicaState.DRAINING, ReplicaState.STOPPED)]
+        assert len(retired) == 1
+        # Empty replicas stop immediately; only outstanding work needs draining.
+        expected_state = ReplicaState.DRAINING if retired[0].in_flight else ReplicaState.STOPPED
+        assert retired[0].state == expected_state
 
     def test_scale_limits(self, engine):
         # Scale up to max
@@ -239,7 +243,8 @@ class TestSimulatorEngine:
             # The target replica should be draining (if it was selected) or another with 0 active requests
             replica = engine.replicas[replica_id]
             # Check that in-flight requests are preserved on whichever replica was drained
-            drained = [r for r in engine.replicas.values() if r.state == ReplicaState.DRAINING]
+            drained = [r for r in engine.replicas.values()
+                       if r.state in (ReplicaState.DRAINING, ReplicaState.STOPPED)]
             assert len(drained) == 1
             # In-flight requests should be preserved on the drained replica
             assert len(drained[0].in_flight) == in_flight_count or drained[0].active_requests == 0

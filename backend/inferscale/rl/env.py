@@ -24,6 +24,8 @@ class InferScaleEnv(gym.Env):
         super().__init__()
 
         self.config = config or {}
+        if self.config.get("decision_interval", 5.0) <= 0:
+            raise ValueError("decision_interval must be positive")
         self.max_episode_steps = max_episode_steps
 
         # Initialize simulator
@@ -39,6 +41,8 @@ class InferScaleEnv(gym.Env):
             sla_threshold=self.config.get("sla_threshold", 30.0),
             replica_capacity=self.config.get("replica_capacity", 10),
             seed=self.config.get("random_seed", 42),
+            cost_per_replica_second=self.config.get("cost_per_replica_second"),
+            slo_target=self.config.get("slo_target", 0.99),
         )
 
         # Initialize reward function
@@ -84,29 +88,30 @@ class InferScaleEnv(gym.Env):
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """Take a step in the environment."""
         self.current_step += 1
+        before = self.simulator.get_metrics()
+        start_time = self.simulator.current_time
 
         # Apply action
         self.simulator.take_action(action)
 
         # Run simulator until next decision point or episode end
-        results = self.simulator.run_until(
+        self.simulator.run_until(
             self.simulator.current_time + self.config.get("decision_interval", 5.0)
         )
 
-        # Extract metrics from results
-        cost = 0.0
-        sla_violated = False
-        queue_pressure = 0.0
-        scaling_churn = 0
-
-        if results:
-            latest = results[-1]
-            if "metrics" in latest:
-                metrics = latest["metrics"]
-                cost = self._extract_cost_from_metrics(metrics)
-                sla_violated = metrics.get("sla_violation_rate", 0) > 0.5  # heuristic
-                queue_pressure = self._extract_queue_pressure_from_metrics(metrics)
-                scaling_churn = self._extract_scaling_churn_from_metrics(metrics)
+        # Reward only work and violations incurred during this decision interval.
+        metrics = self.simulator.get_metrics()
+        elapsed = self.simulator.current_time - start_time
+        cost = metrics["total_cost"] - before["total_cost"]
+        new_violations = metrics["slo_violations"] - before["slo_violations"]
+        exposed = before["pending_requests"] + metrics["arrivals"] - before["arrivals"]
+        sla_violated = new_violations / max(1, exposed)
+        active = sum(r.state.value == "active" for r in self.simulator.replicas.values())
+        queue_pressure = metrics["queued_requests"] / max(1, active)
+        scaling_churn = metrics["scaling_events"] - before["scaling_events"]
+        cost_normalizer = (
+            self.simulator.max_replicas * elapsed * self.simulator.cost_per_replica_second
+        )
 
         # Compute reward
         reward_dict = self.reward_fn.compute(
@@ -114,6 +119,7 @@ class InferScaleEnv(gym.Env):
             sla_violation=sla_violated,
             queue_pressure=queue_pressure,
             scaling_churn=scaling_churn,
+            cost_normalizer=cost_normalizer,
         )
         reward = reward_dict["total"]
 
@@ -127,7 +133,18 @@ class InferScaleEnv(gym.Env):
 
         info = {
             "reward_components": reward_dict,
-            "simulator_metrics": self.simulator.get_metrics() if hasattr(self.simulator, 'get_metrics') else {},
+            "simulator_metrics": metrics,
+            "interval_metrics": {
+                "duration": elapsed,
+                "cost": cost,
+                "replica_seconds": (
+                    metrics["total_replica_seconds"] - before["total_replica_seconds"]
+                ),
+                "new_slo_violations": new_violations,
+                "slo_violation_fraction": sla_violated,
+                "scaling_events": scaling_churn,
+                "cost_normalizer": cost_normalizer,
+            },
             "step": self.current_step,
             "time": self.simulator.current_time,
         }
@@ -152,20 +169,6 @@ class InferScaleEnv(gym.Env):
             obs_dict.get("starting_replicas", 0),
         ], dtype=np.float32)
         return obs_array
-
-    def _extract_cost_from_metrics(self, metrics: Dict) -> float:
-        """Extract cost from simulator metrics."""
-        return metrics.get("total_cost", 0.0) * 100  # scale for observation
-
-    def _extract_queue_pressure_from_metrics(self, metrics: Dict) -> float:
-        """Extract queue pressure from simulator metrics."""
-        queue_len = metrics.get("avg_queue_depth", 0)
-        active_reps = metrics.get("avg_active_replicas", 1)
-        return queue_len / max(1, active_reps)
-
-    def _extract_scaling_churn_from_metrics(self, metrics: Dict) -> int:
-        """Extract scaling churn from simulator metrics."""
-        return metrics.get("scaling_events", 0)
 
     def render(self):
         """Render the environment."""

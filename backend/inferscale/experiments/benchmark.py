@@ -11,16 +11,19 @@ from pathlib import Path
 from inferscale.data.loader import load_requests
 from inferscale.data.synth import SYNTHETIC_WORKLOADS
 from inferscale.policies import get_policy
-from inferscale.schemas.benchmark import BenchmarkConfig, BenchmarkResult, BenchmarkRun
+from inferscale.schemas.benchmark import METRICS, BenchmarkConfig, BenchmarkResult, BenchmarkRun
 from inferscale.schemas.request import RequestSchema
 from inferscale.simulator.engine import SimulatorEngine
 
 METRIC_NOTES = [
     "Simulation output uses an analytical service model; these are not measured GPU results.",
-    "total_cost is the legacy simulator cost: replica startup charges only, not full runtime cost.",
+    "Accounting v2: total_cost bills starting, active (including idle), and draining "
+    "replica-seconds at the configured rate, without a separate startup fee.",
     "Latency and completed_request_sla_violation_rate describe completed requests only; "
     "unfinished_requests must also be considered (horizon censoring).",
-    "Legacy avg_active_replicas and utilization are not time-averaged occupancy and are excluded.",
+    "SLO attainment bounds include every arrival. Pending requests have not yet missed "
+    "their deadline; an inconclusive bound is not an SLO pass.",
+    "avg_active_replicas is a time average. Observation utilization remains active/max replicas.",
     "Workload variation currently randomizes token counts; arrival patterns are deterministic.",
 ]
 
@@ -64,29 +67,16 @@ def trace_digest(requests: list[RequestSchema]) -> str:
 
 
 def extract_metrics(engine: SimulatorEngine) -> dict[str, float | int | None]:
-    """Expose measured scalars and explicitly defined completion-based derivatives.
-
-    Existing percentile definitions and legacy total_cost remain unchanged. Missing
-    latency and SLA observations are unavailable, rather than fabricated zeroes.
-    """
+    """Expose accounting v2 and horizon-aware SLO metrics without fabricating latency."""
     raw = engine.get_metrics()
     completed = engine.metrics["completions"]
     latencies = engine.metrics["latencies"]
     metrics = {
         name: raw.get(name)
-        for name in (
-            "total_cost",
-            "arrivals",
-            "completions",
-            "sla_violations",
-            "max_queue_depth",
-            "scaling_events",
-            "p50_latency_ms",
-            "p95_latency_ms",
-            "p99_latency_ms",
-        )
+        for name in METRICS
     }
     metrics.update(
+        accounting_version=2,
         mean_latency_ms=sum(latencies) / len(latencies) * 1000 if latencies else None,
         completed_request_sla_violation_rate=(
             engine.metrics["sla_violations"] / completed if completed else None
@@ -95,6 +85,9 @@ def extract_metrics(engine: SimulatorEngine) -> dict[str, float | int | None]:
         goodput=(completed - engine.metrics["sla_violations"]) / engine.episode_duration,
         unfinished_requests=engine.metrics["arrivals"] - completed,
     )
+    if not completed:
+        for name in ("p50_latency_ms", "p95_latency_ms", "p99_latency_ms"):
+            metrics[name] = None
     return metrics
 
 
@@ -131,6 +124,8 @@ def run_benchmark(
     runs: list[BenchmarkRun] = []
     provenance = code_provenance()
     provenance["evaluation_split"] = config.evaluation_split
+    provenance["accounting_version"] = 2
+    provenance["billing_states"] = ["starting", "active", "draining"]
     warnings = list(METRIC_NOTES)
     if config.evaluation_split == "unverified":
         warnings.append("Training/evaluation separation is unverified; no held-out claim is made.")
@@ -208,6 +203,8 @@ def run_benchmark(
                                 "episode_duration",
                                 "sla_threshold",
                                 "replica_capacity",
+                                "cost_per_replica_second",
+                                "slo_target",
                             )
                         },
                         seed=seed,

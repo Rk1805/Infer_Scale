@@ -29,6 +29,7 @@ Scatter,
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
 import { BenchmarkPanel } from '../components/BenchmarkPanel'
+import { formatPercent } from '../lib/utils'
 
 const POLICIES = [
   { value: 'fixed', label: 'Fixed Capacity' },
@@ -107,7 +108,7 @@ export function PolicyComparison() {
         m.p50_latency_ms.toFixed(1),
         m.p95_latency_ms.toFixed(1),
         m.p99_latency_ms.toFixed(1),
-        (m.sla_violation_rate * 100).toFixed(2),
+        m.sla_violation_rate == null ? '' : (m.sla_violation_rate * 100).toFixed(2),
         m.goodput.toFixed(2),
         m.throughput.toFixed(2),
         m.max_queue_depth.toString(),
@@ -234,7 +235,7 @@ export function PolicyComparison() {
                       <MetricRow label="Cost" value={`$${m.total_cost.toFixed(2)}`} />
                       <MetricRow label="Avg Replicas" value={m.avg_active_replicas.toFixed(1)} />
                       <MetricRow label="p95 Latency" value={`${m.p95_latency_ms.toFixed(1)}ms`} />
-                      <MetricRow label="SLA Violations" value={`${(m.sla_violation_rate * 100).toFixed(1)}%`} />
+                      <MetricRow label="SLO Violations" value={formatPercent(m.sla_violation_rate)} />
                       <MetricRow label="Goodput" value={`${m.goodput.toFixed(2)} req/s`} />
                     </div>
                   </CardContent>
@@ -280,7 +281,7 @@ export function PolicyComparison() {
                         <TableCell>{m.p50_latency_ms.toFixed(1)}ms</TableCell>
                         <TableCell>{m.p95_latency_ms.toFixed(1)}ms</TableCell>
                         <TableCell>{m.p99_latency_ms.toFixed(1)}ms</TableCell>
-                        <TableCell>{(m.sla_violation_rate * 100).toFixed(1)}%</TableCell>
+                        <TableCell>{formatPercent(m.sla_violation_rate)}</TableCell>
                         <TableCell>{m.goodput.toFixed(2)}</TableCell>
                         <TableCell>{m.throughput.toFixed(2)}</TableCell>
                         <TableCell>{m.max_queue_depth}</TableCell>
@@ -393,7 +394,7 @@ export function PolicyComparison() {
                   <ResponsiveContainer width="100%" height={350}>
                     <BarChart data={POLICIES.map((p) => {
                       const m = comparisonResults[p.value]
-                      return m ? { policy: p.label, violations: m.sla_violation_rate * 100 } : null
+                      return m ? { policy: p.label, violations: m.sla_violation_rate == null ? null : m.sla_violation_rate * 100 } : null
                     }).filter(Boolean) as any[]}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="policy" name="Policy" />

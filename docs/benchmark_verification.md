@@ -1,5 +1,9 @@
 # Benchmark verification record
 
+This records the earlier advanced-benchmarking contribution. The subsequent runtime
+accounting v2 and SLO changes are described in [cost_and_slo.md](cost_and_slo.md);
+the statements below about unchanged metric formulas apply to the earlier work.
+
 Validation ran locally on Windows with Python 3.13.2 and Node.js 24.14.1. No GPU
 was required. Tests use isolated databases and temporary files; the existing
 repository `experiments.db` was preserved byte-for-byte.

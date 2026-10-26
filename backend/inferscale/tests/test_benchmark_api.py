@@ -24,7 +24,8 @@ def client(tmp_path, monkeypatch):
 
 def payload():
     return dict(
-        experiment={"episode_duration": 10, "decision_interval": 2, "replica_startup_delay": 1},
+        experiment={"episode_duration": 10, "decision_interval": 2, "replica_startup_delay": 1,
+                    "cost_per_replica_second": 0.25, "slo_target": 0.95},
         policies=["fixed", "queue"],
         seeds=[11, 22],
         num_requests=10,
@@ -51,6 +52,14 @@ def test_lifecycle_results_and_all_downloads(client):
     assert data["successful_runs"] == 4 and data["failed_runs"] == 0
     assert len(data["result"]["runs"]) == 4
     assert data["aggregates"] and data["paired"]
+    assert len(data["cost_slo"]) == 2
+    for run in data["result"]["runs"]:
+        metrics = run["metrics"]
+        assert metrics["accounting_version"] == 2
+        assert metrics["total_cost"] == pytest.approx(metrics["total_replica_seconds"] * 0.25)
+        assert (metrics["overdue_requests"] + metrics["pending_requests"]
+                == metrics["unfinished_requests"])
+    assert all(row["slo_target"] == 0.95 for row in data["cost_slo"])
     assert any(j["id"] == identifier for j in client.get("/api/benchmarks").json())
     for artifact in ("runs", "aggregates", "report", "manifest"):
         download = client.get(f"/api/benchmarks/{identifier}/export?artifact={artifact}")
@@ -68,6 +77,8 @@ def test_lifecycle_results_and_all_downloads(client):
         {"trace_path": "../../private.csv"},
         {"checkpoint_path": "C:/private.zip"},
         {"experiment": {"decision_interval": 0}},
+        {"experiment": {"cost_per_replica_second": -0.01}},
+        {"experiment": {"slo_target": 1.01}},
         {"unknown": True},
         {"experiment": {"dataset_id": "../../private.csv"}},
     ],

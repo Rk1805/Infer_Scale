@@ -31,6 +31,7 @@ ResponsiveContainer,
 ComposedChart
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
+import { formatPercent } from '../lib/utils'
 
 export function Simulation() {
   const { id } = useParams<{ id: string }>()
@@ -191,9 +192,23 @@ export function Simulation() {
         <MetricCard title="Active Replicas" value={metrics?.avg_active_replicas?.toFixed(1) || '0'} icon={<Server className="h-5 w-5" />} />
         <MetricCard title="p50 Latency" value={`${(metrics?.p50_latency_ms || 0).toFixed(1)}ms`} icon={<RotateCcw className="h-5 w-5" />} />
         <MetricCard title="p95 Latency" value={`${(metrics?.p95_latency_ms || 0).toFixed(1)}ms`} icon={<RotateCcw className="h-5 w-5" />} />
-        <MetricCard title="SLA Violations" value={`${((metrics?.sla_violation_rate || 0) * 100).toFixed(1)}%`} icon={<AlertCircle className="h-5 w-5" />} />
+        <MetricCard title="SLO Violations" value={formatPercent(metrics?.sla_violation_rate)} icon={<AlertCircle className="h-5 w-5" />} />
         <MetricCard title="Total Cost" value={`$${(metrics?.total_cost || 0).toFixed(2)}`} icon={<Download className="h-5 w-5" />} />
       </div>
+
+      {metrics?.accounting_version === 2 && <Card>
+        <CardHeader><CardTitle>Operating cost and SLO outcome</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <p>Simulated cost: ${metrics.total_cost.toFixed(4)} · {metrics.total_replica_seconds?.toFixed(2)} billable replica-seconds.</p>
+          <p>Starting ${metrics.starting_cost?.toFixed(4)} · Active ${metrics.active_cost?.toFixed(4)} · Draining ${metrics.draining_cost?.toFixed(4)}.</p>
+          <p>SLO target {formatPercent(metrics.slo_target)} within {experiment.config.sla_threshold}s: <strong>{metrics.slo_met === true ? 'met' : metrics.slo_met === false ? 'violated' : 'inconclusive'}</strong>.</p>
+          <p>Attainment bounds: {formatPercent(metrics.slo_attainment_lower_bound)}–{formatPercent(metrics.slo_attainment_upper_bound)}.</p>
+          <p>On-time {metrics.on_time_completions} · Late {metrics.late_completions} · Overdue unfinished {metrics.overdue_requests} · Pending {metrics.pending_requests}.</p>
+          <p>Queued {metrics.queued_requests} · In flight {metrics.in_flight_requests}.</p>
+          <p className="text-sm text-muted-foreground">All arrivals count toward the SLO. Pending requests have unexpired deadlines; the bounds show their best and worst possible outcomes. Latency percentiles describe completed requests only.</p>
+        </CardContent>
+      </Card>}
+      {metrics && metrics.accounting_version !== 2 && <p className="text-sm text-muted-foreground">This saved experiment uses legacy startup-only cost accounting. Run a new experiment for operating cost and SLO evaluation.</p>}
 
       {/* Charts */}
       <Tabs defaultValue="latency" className="space-y-4">

@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
 from inferscale.config import settings
+from inferscale.experiments.evaluation import cost_slo_comparisons
 from inferscale.experiments.persistence import db
 from inferscale.experiments.reporting import ARTIFACTS
 from inferscale.experiments.statistics import aggregate_results, paired_comparisons
@@ -46,6 +47,7 @@ class BenchmarkResultsResponse(BaseModel):
     paired: list[dict]
     successful_runs: int
     failed_runs: int
+    cost_slo: list[dict]
 
 
 def get_record(identifier: UUID):
@@ -110,6 +112,7 @@ def get_results(identifier: UUID):
         result=result,
         aggregates=aggregate_results(result),
         paired=paired_comparisons(result),
+        cost_slo=cost_slo_comparisons(result),
         successful_runs=successful,
         failed_runs=len(result.runs) - successful,
     )

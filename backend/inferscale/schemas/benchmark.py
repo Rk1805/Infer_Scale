@@ -11,6 +11,15 @@ PolicyName = Literal["fixed", "threshold", "queue", "ppo"]
 WorkloadName = Literal["steady", "periodic", "flash_crowd", "mixed"]
 METRICS = (
     "total_cost",
+    "total_replica_seconds",
+    "starting_replica_seconds",
+    "active_replica_seconds",
+    "draining_replica_seconds",
+    "starting_cost",
+    "active_cost",
+    "draining_cost",
+    "avg_active_replicas",
+    "cost_per_on_time_request",
     "arrivals",
     "completions",
     "sla_violations",
@@ -24,6 +33,18 @@ METRICS = (
     "throughput",
     "goodput",
     "unfinished_requests",
+    "queued_requests",
+    "in_flight_requests",
+    "on_time_completions",
+    "late_completions",
+    "overdue_requests",
+    "pending_requests",
+    "slo_violations",
+    "slo_evaluated_requests",
+    "sla_violation_rate",
+    "completion_rate",
+    "slo_attainment_lower_bound",
+    "slo_attainment_upper_bound",
 )
 
 
@@ -66,6 +87,7 @@ class BenchmarkConfig(BaseModel):
     model_id: str | None = None
     trace_path: str | None = None
     evaluation_split: str = Field(default="unverified", max_length=200)
+    baseline_policy: PolicyName = "fixed"
 
     @model_validator(mode="after")
     def validate_matrix(self):

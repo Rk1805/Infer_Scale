@@ -15,14 +15,18 @@ class RewardFunction:
     def compute(
         self,
         cost: float,
-        sla_violation: bool,
+        sla_violation: float,
         queue_pressure: float,
         scaling_churn: int,
+        cost_normalizer: Optional[float] = None,
     ) -> Dict[str, float]:
         """Compute reward components."""
         # Normalize components
-        normalized_cost = min(cost, 10.0) / 10.0  # cap at 10x cost
-        sla_penalty = 1.0 if sla_violation else 0.0
+        normalized_cost = (
+            min(max(cost / cost_normalizer, 0.0), 1.0) if cost_normalizer and cost_normalizer > 0
+            else (0.0 if cost_normalizer == 0 else min(cost, 10.0) / 10.0)
+        )
+        sla_penalty = min(max(float(sla_violation), 0.0), 1.0)
         normalized_queue = min(queue_pressure, 5.0) / 5.0  # cap at 5x
         normalized_churn = min(scaling_churn, 3.0) / 3.0  # cap at 3 actions
 

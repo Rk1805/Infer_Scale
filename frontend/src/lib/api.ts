@@ -157,6 +157,7 @@ export interface BenchmarkRequest {
   seeds: number[]
   num_requests: number
   model_id?: string
+  baseline_policy?: string
 }
 
 export interface BenchmarkJob {
@@ -186,12 +187,34 @@ export interface BenchmarkResults {
   successful_runs: number
   failed_runs: number
   aggregates: BenchmarkSummary[]
+  cost_slo: CostSloComparison[]
   result: {
     warnings: string[]
     runs: Array<{
       policy: string; workload: string; seed: number; status: string; error: string | null
     }>
   }
+}
+
+export interface CostSloComparison {
+  workload: string
+  policy: string
+  expected_runs: number
+  completed_runs: number
+  failed_runs: number
+  slo_status: 'met' | 'violated' | 'inconclusive' | 'unavailable'
+  slo_met_runs: number
+  slo_violated_runs: number
+  slo_inconclusive_runs: number
+  slo_target: number
+  mean_cost: number | null
+  mean_attainment_lower: number | null
+  mean_attainment_upper: number | null
+  mean_overdue_requests: number | null
+  mean_pending_requests: number | null
+  baseline_policy: string
+  matched_cost_pairs: number
+  mean_cost_savings_percent: number | null
 }
 
 // Types
@@ -263,6 +286,8 @@ export interface ExperimentConfig {
   decision_interval: number
   episode_duration: number
   sla_threshold: number
+  slo_target?: number
+  cost_per_replica_second?: number
   random_seed: number
   reward_alpha: number
   reward_beta: number
@@ -288,6 +313,21 @@ export interface ExperimentJob {
 }
 
 export interface ExperimentMetrics {
+  accounting_version?: number
+  total_replica_seconds?: number
+  starting_cost?: number
+  active_cost?: number
+  draining_cost?: number
+  queued_requests?: number
+  in_flight_requests?: number
+  overdue_requests?: number
+  pending_requests?: number
+  on_time_completions?: number
+  late_completions?: number
+  slo_attainment_lower_bound?: number | null
+  slo_attainment_upper_bound?: number | null
+  slo_met?: boolean | null
+  slo_target?: number
   avg_queueing_delay_ms: number
   avg_service_time_ms: number
   completions: number
@@ -298,7 +338,7 @@ export interface ExperimentMetrics {
   p50_latency_ms: number
   p95_latency_ms: number
   p99_latency_ms: number
-  sla_violation_rate: number
+  sla_violation_rate: number | null
   goodput: number
   throughput: number
   max_queue_depth: number
